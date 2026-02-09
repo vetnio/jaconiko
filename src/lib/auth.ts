@@ -51,4 +51,10 @@ export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
     }
     return (_auth as Record<string | symbol, unknown>)[prop];
   },
+  has(_target, prop) {
+    if (!_auth) {
+      _auth = createAuth();
+    }
+    return prop in (_auth as Record<string | symbol, unknown>);
+  },
 });
