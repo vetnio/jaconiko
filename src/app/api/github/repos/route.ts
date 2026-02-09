@@ -66,6 +66,9 @@ export async function GET() {
     return NextResponse.json(allRepos);
   } catch (err) {
     console.error("Failed to list GitHub repos:", err);
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json(
+      { error: "Failed to fetch repositories from GitHub" },
+      { status: 502 }
+    );
   }
 }

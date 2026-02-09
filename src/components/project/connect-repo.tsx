@@ -34,14 +34,22 @@ export function ConnectRepo({
   const [connectedRepoIds, setConnectedRepoIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<number | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setFetchError(null);
 
     Promise.all([
-      fetch("/api/github/repos").then((r) => r.json()),
-      fetch(`/api/workspaces/${workspaceId}/projects`).then((r) => r.json()),
+      fetch("/api/github/repos").then((r) => {
+        if (!r.ok) throw new Error(`Failed to load repos (${r.status})`);
+        return r.json();
+      }),
+      fetch(`/api/workspaces/${workspaceId}/projects`).then((r) => {
+        if (!r.ok) throw new Error(`Failed to load projects (${r.status})`);
+        return r.json();
+      }),
     ])
       .then(([repoData, projectData]) => {
         setRepos(Array.isArray(repoData) ? repoData : []);
@@ -52,9 +60,10 @@ export function ConnectRepo({
         );
         setConnectedRepoIds(ids);
       })
-      .catch(() => {
+      .catch((err) => {
         setRepos([]);
         setConnectedRepoIds(new Set());
+        setFetchError(err.message || "Something went wrong");
       })
       .finally(() => setLoading(false));
   }, [open, workspaceId]);
@@ -89,6 +98,32 @@ export function ConnectRepo({
       {loading ? (
         <div className="flex justify-center py-8">
           <Spinner className="h-6 w-6" />
+        </div>
+      ) : fetchError ? (
+        <div className="text-center py-8">
+          <p className="text-[var(--destructive)] mb-2">
+            Could not load repositories.
+          </p>
+          <p className="text-sm text-[var(--muted-foreground)] mb-4">
+            {fetchError}
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setLoading(true);
+              setFetchError(null);
+              fetch("/api/github/repos")
+                .then((r) => {
+                  if (!r.ok) throw new Error(`Failed to load repos (${r.status})`);
+                  return r.json();
+                })
+                .then((data) => setRepos(Array.isArray(data) ? data : []))
+                .catch((err) => setFetchError(err.message || "Something went wrong"))
+                .finally(() => setLoading(false));
+            }}
+          >
+            Retry
+          </Button>
         </div>
       ) : repos.length === 0 ? (
         <div className="text-center py-8">

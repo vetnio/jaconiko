@@ -126,8 +126,8 @@ export function ChatInterface({
             className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
             disabled={isLoading}
           />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            <Send className="h-4 w-4" />
+          <Button type="submit" disabled={isLoading || !input.trim()} className="flex items-center justify-center">
+            <Send className="h-5 w-5" />
           </Button>
         </form>
       </div>
