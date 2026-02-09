@@ -82,10 +82,10 @@ export function ThreadList({
                     if (e.key === "Escape") setEditingId(null);
                   }}
                 />
-                <button onClick={() => confirmEdit(thread.id)}>
+                <button onClick={() => confirmEdit(thread.id)} className="cursor-pointer">
                   <Check className="h-3.5 w-3.5 text-green-600" />
                 </button>
-                <button onClick={() => setEditingId(null)}>
+                <button onClick={() => setEditingId(null)} className="cursor-pointer">
                   <X className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
                 </button>
               </div>
@@ -101,13 +101,13 @@ export function ThreadList({
                 <div className="hidden group-hover:flex items-center gap-0.5">
                   <button
                     onClick={() => startEdit(thread)}
-                    className="p-0.5 rounded hover:bg-[var(--border)]"
+                    className="p-0.5 rounded hover:bg-[var(--border)] cursor-pointer"
                   >
                     <Pencil className="h-3 w-3 text-[var(--muted-foreground)]" />
                   </button>
                   <button
                     onClick={() => setDeleteTarget(thread.id)}
-                    className="p-0.5 rounded hover:bg-[var(--border)]"
+                    className="p-0.5 rounded hover:bg-[var(--border)] cursor-pointer"
                   >
                     <Trash2 className="h-3 w-3 text-[var(--destructive)]" />
                   </button>

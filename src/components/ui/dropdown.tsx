@@ -24,7 +24,7 @@ export function Dropdown({ trigger, children, align = "left" }: DropdownProps) {
 
   return (
     <div ref={ref} className="relative">
-      <div onClick={() => setOpen(!open)}>{trigger}</div>
+      <div onClick={() => setOpen(!open)} className="cursor-pointer">{trigger}</div>
       {open && (
         <div
           className={`absolute z-50 mt-1 min-w-[200px] rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-lg py-1 ${
@@ -51,7 +51,7 @@ export function DropdownItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--muted)] transition-colors ${
+      className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--muted)] transition-colors cursor-pointer ${
         destructive ? "text-[var(--destructive)]" : ""
       }`}
     >
