@@ -7,6 +7,7 @@ let _auth: ReturnType<typeof betterAuth> | null = null;
 
 function createAuth() {
   return betterAuth({
+    baseURL: process.env.BETTER_AUTH_URL,
     database: drizzleAdapter(db, {
       provider: "pg",
       schema: {
