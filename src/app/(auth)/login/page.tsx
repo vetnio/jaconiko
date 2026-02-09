@@ -1,14 +1,13 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/invitations";
   const [email, setEmail] = useState("");
@@ -21,18 +20,23 @@ function LoginForm() {
     setError("");
     setLoading(true);
 
-    const result = await signIn.email({
-      email,
-      password,
-    });
+    try {
+      const result = await signIn.email({
+        email,
+        password,
+      });
 
-    if (result.error) {
-      setError(result.error.message || "Invalid credentials");
+      if (result.error) {
+        setError(result.error.message || "Invalid credentials");
+        setLoading(false);
+        return;
+      }
+
+      window.location.href = redirectTo;
+    } catch {
+      setError("Something went wrong. Please try again.");
       setLoading(false);
-      return;
     }
-
-    router.push(redirectTo);
   }
 
   async function handleGitHubLogin() {

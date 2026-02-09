@@ -1,14 +1,13 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signUp, signIn } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 function SignupForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/invitations";
   const [name, setName] = useState("");
@@ -22,19 +21,24 @@ function SignupForm() {
     setError("");
     setLoading(true);
 
-    const result = await signUp.email({
-      name,
-      email,
-      password,
-    });
+    try {
+      const result = await signUp.email({
+        name,
+        email,
+        password,
+      });
 
-    if (result.error) {
-      setError(result.error.message || "Could not create account");
+      if (result.error) {
+        setError(result.error.message || "Could not create account");
+        setLoading(false);
+        return;
+      }
+
+      window.location.href = redirectTo;
+    } catch {
+      setError("Something went wrong. Please try again.");
       setLoading(false);
-      return;
     }
-
-    router.push(redirectTo);
   }
 
   async function handleGitHubSignup() {
