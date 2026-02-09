@@ -11,9 +11,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for session token
+  // Check for session token (BetterAuth uses __Secure- prefix on HTTPS)
   const sessionToken =
-    request.cookies.get("better-auth.session_token")?.value;
+    request.cookies.get("better-auth.session_token")?.value ||
+    request.cookies.get("__Secure-better-auth.session_token")?.value;
 
   if (!sessionToken && !pathname.startsWith("/api")) {
     const loginUrl = new URL("/login", request.url);
