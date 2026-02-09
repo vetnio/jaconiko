@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
-const publicPaths = ["/login", "/signup", "/api/auth", "/api/github/webhook"];
+const publicPaths = ["/login", "/signup", "/api/auth", "/api/github/webhook", "/api/github/callback"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -11,10 +12,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for session token (BetterAuth uses __Secure- prefix on HTTPS)
-  const sessionToken =
-    request.cookies.get("better-auth.session_token")?.value ||
-    request.cookies.get("__Secure-better-auth.session_token")?.value;
+  // Check for session cookie using BetterAuth's official helper
+  const sessionToken = getSessionCookie(request);
 
   if (!sessionToken && !pathname.startsWith("/api")) {
     const loginUrl = new URL("/login", request.url);

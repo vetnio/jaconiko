@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import * as schema from "./db/schema";
 
@@ -8,6 +9,7 @@ let _auth: ReturnType<typeof betterAuth> | null = null;
 function createAuth() {
   return betterAuth({
     baseURL: process.env.BETTER_AUTH_URL,
+    secret: process.env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
       provider: "pg",
       schema: {
@@ -41,7 +43,20 @@ function createAuth() {
         },
       },
     },
-    trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:3000"],
+    session: {
+      expiresIn: 60 * 60 * 24 * 7,
+      updateAge: 60 * 60 * 24,
+    },
+    trustedOrigins: [
+      process.env.BETTER_AUTH_URL,
+      process.env.NEXT_PUBLIC_APP_URL,
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+      process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : undefined,
+      "http://localhost:3000",
+    ].filter(Boolean) as string[],
+    plugins: [nextCookies()],
   });
 }
 

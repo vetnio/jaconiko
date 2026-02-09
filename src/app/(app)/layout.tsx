@@ -38,8 +38,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownItem
               destructive
               onClick={async () => {
-                await signOut();
-                router.push("/login");
+                try {
+                  await signOut();
+                } catch {
+                  // Redirect regardless of server response
+                }
+                window.location.href = "/login";
               }}
             >
               <span className="flex items-center gap-2">

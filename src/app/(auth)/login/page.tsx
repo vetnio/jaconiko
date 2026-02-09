@@ -10,9 +10,12 @@ import { Input } from "@/components/ui/input";
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/invitations";
+  const oauthError = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    oauthError === "github" ? "GitHub sign-in failed. Please try again." : ""
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -27,7 +30,7 @@ function LoginForm() {
       });
 
       if (result.error) {
-        setError(result.error.message || "Invalid credentials");
+        setError(result.error.message || result.error.statusText || "Invalid credentials");
         setLoading(false);
         return;
       }
@@ -40,10 +43,15 @@ function LoginForm() {
   }
 
   async function handleGitHubLogin() {
-    await signIn.social({
-      provider: "github",
-      callbackURL: redirectTo,
-    });
+    try {
+      await signIn.social({
+        provider: "github",
+        callbackURL: redirectTo,
+        errorCallbackURL: "/login?error=github",
+      });
+    } catch {
+      setError("Could not start GitHub sign-in. Please try again.");
+    }
   }
 
   return (
