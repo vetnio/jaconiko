@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { useChat } from "ai/react";
 import { MessageBubble } from "./message-bubble";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, AlertCircle } from "lucide-react";
+import { ArrowUp, AlertCircle, MessageSquare } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
 interface ChatMessage {
@@ -94,6 +94,9 @@ export function ChatInterface({
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
         {messages.length === 0 && (
           <div className="text-center py-20">
+            <div className="w-12 h-12 rounded-full bg-[var(--accent)] flex items-center justify-center mx-auto mb-4">
+              <MessageSquare className="h-6 w-6 text-[var(--accent-foreground)]" />
+            </div>
             <p className="text-lg font-medium mb-2">
               Ask anything about your codebase
             </p>
@@ -142,7 +145,7 @@ export function ChatInterface({
             value={input}
             onChange={handleInputChange}
             placeholder="Ask about your codebase..."
-            className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
+            className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent"
           />
           <Button type="submit" disabled={isLoading || !input.trim()} className="shrink-0 rounded-full !p-2.5">
             <ArrowUp className="h-4 w-4" />

@@ -6,10 +6,13 @@ import { useSession } from "@/lib/auth-client";
 import { MemberList } from "@/components/workspace/member-list";
 import { InviteForm } from "@/components/workspace/invite-form";
 import { PendingInvitations } from "@/components/workspace/pending-invitations";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { RefreshCw } from "lucide-react";
 
 interface Member {
@@ -30,6 +33,7 @@ export default function WorkspaceSettingsPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
+  const toast = useToast();
   const workspaceId = params.workspaceId as string;
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +91,12 @@ export default function WorkspaceSettingsPage() {
       });
       if (res.ok && workspace) {
         setWorkspace({ ...workspace, name: wsName.trim() });
+        toast.success("Workspace renamed!");
+      } else {
+        toast.error("Failed to rename workspace.");
       }
+    } catch {
+      toast.error("Network error. Please try again.");
     } finally {
       setRenaming(false);
     }
@@ -110,8 +119,30 @@ export default function WorkspaceSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner className="h-8 w-8" />
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <Skeleton className="h-5 w-40 mb-4" />
+        <Skeleton className="h-8 w-56 mb-6" />
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="pt-6 space-y-3">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6 space-y-3">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6 space-y-3">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -129,81 +160,98 @@ export default function WorkspaceSettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Workspace", href: `/workspace/${workspaceId}` },
+          { label: "Settings" },
+        ]}
+      />
       <h1 className="text-xl font-bold mb-6">Workspace Settings</h1>
 
       {isAdmin && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Workspace name</h2>
-          <form onSubmit={handleRename} className="flex gap-2">
-            <Input
-              id="workspace-name"
-              value={wsName}
-              onChange={(e) => setWsName(e.target.value)}
-              placeholder="Workspace name"
-              className="flex-1"
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold mb-3">Workspace name</h2>
+            <form onSubmit={handleRename} className="flex gap-2">
+              <Input
+                id="workspace-name"
+                value={wsName}
+                onChange={(e) => setWsName(e.target.value)}
+                placeholder="Workspace name"
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                loading={renaming}
+                disabled={wsName.trim() === workspace?.name}
+              >
+                Rename
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {isAdmin && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold mb-3">Invite a member</h2>
+            <InviteForm
+              workspaceId={workspaceId}
+              onInvited={() => {
+                fetchMembers();
+                setInviteCount((c) => c + 1);
+              }}
             />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={renaming || wsName.trim() === workspace?.name}
-            >
-              {renaming ? "Saving..." : "Rename"}
-            </Button>
-          </form>
-        </section>
+          </CardContent>
+        </Card>
       )}
 
       {isAdmin && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Invite a member</h2>
-          <InviteForm
-            workspaceId={workspaceId}
-            onInvited={() => {
-              fetchMembers();
-              setInviteCount((c) => c + 1);
-            }}
-          />
-        </section>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold mb-3">Pending invitations</h2>
+            <PendingInvitations
+              workspaceId={workspaceId}
+              refreshKey={inviteCount}
+            />
+          </CardContent>
+        </Card>
       )}
 
-      {isAdmin && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Pending invitations</h2>
-          <PendingInvitations
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <h2 className="text-lg font-semibold mb-3">Members</h2>
+          <MemberList
+            members={members}
             workspaceId={workspaceId}
-            refreshKey={inviteCount}
+            currentUserRole={currentRole}
+            currentUserId={session?.user?.id || ""}
+            onUpdate={fetchMembers}
           />
-        </section>
-      )}
-
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Members</h2>
-        <MemberList
-          members={members}
-          workspaceId={workspaceId}
-          currentUserRole={currentRole}
-          currentUserId={session?.user?.id || ""}
-          onUpdate={fetchMembers}
-        />
-      </section>
+        </CardContent>
+      </Card>
 
       {isSuperadmin && (
-        <section className="border-t border-[var(--border)] pt-6">
-          <h2 className="text-lg font-semibold mb-2 text-[var(--destructive)]">
-            Danger zone
-          </h2>
-          <p className="text-sm text-[var(--muted-foreground)] mb-4">
-            Deleting a workspace will permanently remove all projects, chats,
-            and members.
-          </p>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setShowDeleteConfirm(true)}
-          >
-            Delete workspace
-          </Button>
-        </section>
+        <Card className="border-[var(--destructive)]/30">
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold mb-2 text-[var(--destructive)]">
+              Danger zone
+            </h2>
+            <p className="text-sm text-[var(--muted-foreground)] mb-4">
+              Deleting a workspace will permanently remove all projects, chats,
+              and members.
+            </p>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete workspace
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       <ConfirmDialog

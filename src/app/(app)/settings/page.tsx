@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { useToast } from "@/components/ui/toast";
 
 const levels = [
   { value: "non_technical", label: "Non-technical" },
@@ -14,11 +17,10 @@ const levels = [
 
 export default function SettingsPage() {
   const { data: session, isPending } = useSession();
+  const toast = useToast();
   const [name, setName] = useState("");
   const [technicalLevel, setTechnicalLevel] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (session?.user) {
@@ -31,8 +33,6 @@ export default function SettingsPage() {
 
   async function handleSave() {
     setSaving(true);
-    setSaved(false);
-    setError("");
 
     try {
       const res = await fetch("/api/user", {
@@ -42,14 +42,13 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) {
-        setError("Failed to save settings. Please try again.");
+        toast.error("Failed to save settings. Please try again.");
         return;
       }
 
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast.success("Settings saved!");
     } catch {
-      setError("Network error. Please check your connection and try again.");
+      toast.error("Network error. Please check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -57,62 +56,77 @@ export default function SettingsPage() {
 
   if (isPending) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner className="h-8 w-8" />
+      <div className="max-w-lg mx-auto px-4 py-8">
+        <Skeleton className="h-5 w-40 mb-4" />
+        <Skeleton className="h-8 w-48 mb-6" />
+        <Card>
+          <CardContent className="pt-6 space-y-6">
+            <div>
+              <Skeleton className="h-4 w-16 mb-2" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div>
+              <Skeleton className="h-4 w-16 mb-2" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <div>
+              <Skeleton className="h-4 w-28 mb-2" />
+              <Skeleton className="h-12 w-full mb-2" />
+              <Skeleton className="h-12 w-full mb-2" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+            <Skeleton className="h-9 w-32" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Profile Settings" }]} />
       <h1 className="text-xl font-bold mb-6">Profile Settings</h1>
 
-      <div className="space-y-6">
-        <Input
-          id="name"
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+      <Card>
+        <CardContent className="pt-6 space-y-6">
+          <Input
+            id="name"
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
 
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)] mb-1">Email</p>
-          <p className="text-sm">{session?.user?.email}</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5">
-            Technical level
-          </label>
-          <div className="space-y-2">
-            {levels.map((level) => (
-              <button
-                key={level.value}
-                onClick={() => setTechnicalLevel(level.value)}
-                className={`w-full text-left p-3 rounded-lg border text-sm transition-colors ${
-                  technicalLevel === level.value
-                    ? "border-[var(--primary)] bg-[var(--primary)]/5"
-                    : "border-[var(--border)] hover:border-[var(--muted-foreground)]"
-                }`}
-              >
-                {level.label}
-              </button>
-            ))}
+          <div>
+            <p className="text-sm text-[var(--muted-foreground)] mb-1">Email</p>
+            <p className="text-sm">{session?.user?.email}</p>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save changes"}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">
+              Technical level
+            </label>
+            <div className="space-y-2">
+              {levels.map((level) => (
+                <button
+                  key={level.value}
+                  onClick={() => setTechnicalLevel(level.value)}
+                  className={`w-full text-left p-3 rounded-lg border text-sm transition-colors ${
+                    technicalLevel === level.value
+                      ? "border-[var(--primary)] bg-[var(--primary)]/5"
+                      : "border-[var(--border)] hover:border-[var(--muted-foreground)]"
+                  }`}
+                >
+                  {level.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Button onClick={handleSave} loading={saving}>
+            Save changes
           </Button>
-          {saved && (
-            <span className="text-sm text-green-600">Saved!</span>
-          )}
-          {error && (
-            <span className="text-sm text-[var(--destructive)]">{error}</span>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

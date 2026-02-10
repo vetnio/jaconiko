@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ProjectList } from "@/components/project/project-list";
 import { ConnectRepo } from "@/components/project/connect-repo";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Settings, RefreshCw } from "lucide-react";
 
 interface Project {
@@ -41,8 +41,19 @@ export default function WorkspacePage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner className="h-8 w-8" />
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <Skeleton className="h-7 w-28" />
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-32" />
+          </div>
+        </div>
+        <div className="grid gap-3">
+          <Skeleton className="h-16 w-full rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+        </div>
       </div>
     );
   }

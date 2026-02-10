@@ -69,6 +69,26 @@ export async function POST(
   }
 
   const { email, role } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Check for existing pending invitation
+  const [existing] = await db
+    .select({ id: workspaceInvitations.id })
+    .from(workspaceInvitations)
+    .where(
+      and(
+        eq(workspaceInvitations.workspaceId, workspaceId),
+        eq(workspaceInvitations.email, normalizedEmail),
+        eq(workspaceInvitations.status, "pending")
+      )
+    );
+
+  if (existing) {
+    return NextResponse.json(
+      { error: "A pending invitation already exists for this email" },
+      { status: 409 }
+    );
+  }
 
   // Get workspace name
   const [workspace] = await db
@@ -87,7 +107,7 @@ export async function POST(
     .insert(workspaceInvitations)
     .values({
       workspaceId,
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       invitedById: session.user.id,
       role,
       expiresAt,
@@ -112,16 +132,17 @@ export async function POST(
     if (result.error) {
       console.error("Resend API error:", result.error);
       return NextResponse.json(
-        { ...invitation, emailWarning: "Invitation created but the email could not be sent." },
+        { ...invitation, emailWarning: `Invitation created but email failed: ${result.error.message}` },
         { status: 201 }
       );
     }
   } catch (err) {
     console.error("Failed to send invitation email:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
-      { ...invitation, emailWarning: "Invitation created but the email could not be sent." },
+      { ...invitation, emailWarning: `Invitation created but email failed: ${message}` },
       { status: 201 }
-    );
+      );
   }
 
   return NextResponse.json(invitation, { status: 201 });

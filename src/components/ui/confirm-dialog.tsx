@@ -35,9 +35,9 @@ export function ConfirmDialog({
           variant={destructive ? "destructive" : "primary"}
           size="sm"
           onClick={onConfirm}
-          disabled={loading}
+          loading={loading}
         >
-          {loading ? "..." : confirmLabel}
+          {confirmLabel}
         </Button>
       </div>
     </Modal>

@@ -83,7 +83,7 @@ export function ThreadList({
                   }}
                 />
                 <button onClick={() => confirmEdit(thread.id)} className="cursor-pointer">
-                  <Check className="h-3.5 w-3.5 text-green-600" />
+                  <Check className="h-3.5 w-3.5 text-[var(--success)]" />
                 </button>
                 <button onClick={() => setEditingId(null)} className="cursor-pointer">
                   <X className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />

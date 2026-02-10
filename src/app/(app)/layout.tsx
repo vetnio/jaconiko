@@ -13,9 +13,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-[var(--border)] px-4 h-14 flex items-center justify-between shrink-0">
+      <header className="border-b border-[var(--border)] px-4 h-14 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center gap-4">
-          <Link href="/" className="font-bold text-lg">
+          <Link href="/" className="font-bold text-lg bg-gradient-to-r from-[var(--primary)] to-blue-400 bg-clip-text text-transparent tracking-tight">
             Jakoniko
           </Link>
           <WorkspaceSwitcher />

@@ -57,6 +57,9 @@ function LoginForm() {
   return (
     <div>
       <div className="text-center mb-8">
+        <p className="text-2xl font-bold bg-gradient-to-r from-[var(--primary)] to-blue-400 bg-clip-text text-transparent tracking-tight mb-4">
+          Jakoniko
+        </p>
         <h1 className="text-2xl font-bold">Welcome back</h1>
         <p className="text-[var(--muted-foreground)] mt-1">
           Sign in to your Jakoniko account
@@ -87,8 +90,8 @@ function LoginForm() {
           <p className="text-sm text-[var(--destructive)]">{error}</p>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Signing in..." : "Sign in"}
+        <Button type="submit" className="w-full" loading={loading}>
+          Sign in
         </Button>
       </form>
 
@@ -97,7 +100,7 @@ function LoginForm() {
           <div className="w-full border-t border-[var(--border)]" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="bg-[var(--background)] px-2 text-[var(--muted-foreground)]">
+          <span className="bg-[var(--card)] px-2 text-[var(--muted-foreground)]">
             or
           </span>
         </div>

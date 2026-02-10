@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 const levels = [
   {
@@ -75,43 +76,49 @@ export default function TechnicalLevelPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-2">How technical are you?</h1>
-        <p className="text-[var(--muted-foreground)] mb-6">
-          This helps us tailor how the AI explains your codebase.
-        </p>
+      <Card className="w-full max-w-md">
+        <CardContent className="pt-6">
+          <p className="text-2xl font-bold bg-gradient-to-r from-[var(--primary)] to-blue-400 bg-clip-text text-transparent tracking-tight mb-4">
+            Jakoniko
+          </p>
+          <h1 className="text-2xl font-bold mb-2">How technical are you?</h1>
+          <p className="text-[var(--muted-foreground)] mb-6">
+            This helps us tailor how the AI explains your codebase.
+          </p>
 
-        <div className="space-y-3 mb-6">
-          {levels.map((level) => (
-            <button
-              key={level.value}
-              onClick={() => setSelected(level.value)}
-              className={`w-full text-left p-4 rounded-lg border transition-colors ${
-                selected === level.value
-                  ? "border-[var(--primary)] bg-[var(--primary)]/5"
-                  : "border-[var(--border)] hover:border-[var(--muted-foreground)]"
-              }`}
-            >
-              <p className="font-medium">{level.label}</p>
-              <p className="text-sm text-[var(--muted-foreground)] mt-1">
-                {level.description}
-              </p>
-            </button>
-          ))}
-        </div>
+          <div className="space-y-3 mb-6">
+            {levels.map((level) => (
+              <button
+                key={level.value}
+                onClick={() => setSelected(level.value)}
+                className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                  selected === level.value
+                    ? "border-[var(--primary)] bg-[var(--primary)]/5"
+                    : "border-[var(--border)] hover:border-[var(--muted-foreground)]"
+                }`}
+              >
+                <p className="font-medium">{level.label}</p>
+                <p className="text-sm text-[var(--muted-foreground)] mt-1">
+                  {level.description}
+                </p>
+              </button>
+            ))}
+          </div>
 
-        {error && (
-          <p className="text-sm text-[var(--destructive)] mb-4">{error}</p>
-        )}
+          {error && (
+            <p className="text-sm text-[var(--destructive)] mb-4">{error}</p>
+          )}
 
-        <Button
-          className="w-full"
-          disabled={!selected || loading}
-          onClick={handleContinue}
-        >
-          {loading ? "Saving..." : "Continue"}
-        </Button>
-      </div>
+          <Button
+            className="w-full"
+            disabled={!selected}
+            loading={loading}
+            onClick={handleContinue}
+          >
+            Continue
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

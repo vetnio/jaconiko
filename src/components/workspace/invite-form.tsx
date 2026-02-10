@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 interface InviteFormProps {
   workspaceId: string;
@@ -10,18 +11,13 @@ interface InviteFormProps {
 }
 
 export function InviteForm({ workspaceId, onInvited }: InviteFormProps) {
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"user" | "admin">("user");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [emailWarning, setEmailWarning] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setSuccess(false);
-    setEmailWarning("");
     setLoading(true);
 
     try {
@@ -36,20 +32,21 @@ export function InviteForm({ workspaceId, onInvited }: InviteFormProps) {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Failed to send invitation");
+        toast.error(data.error || "Failed to send invitation");
         return;
       }
 
       const data = await res.json();
       if (data.emailWarning) {
-        setEmailWarning(data.emailWarning);
+        toast.info(data.emailWarning);
+      } else {
+        toast.success("Invitation sent!");
       }
 
-      setSuccess(true);
       setEmail("");
       onInvited();
     } catch {
-      setError("Something went wrong");
+      toast.error("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -76,17 +73,10 @@ export function InviteForm({ workspaceId, onInvited }: InviteFormProps) {
           <option value="user">Member</option>
           <option value="admin">Admin</option>
         </select>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Sending..." : "Invite"}
+        <Button type="submit" loading={loading}>
+          Invite
         </Button>
       </div>
-      {error && <p className="text-sm text-[var(--destructive)]">{error}</p>}
-      {success && !emailWarning && (
-        <p className="text-sm text-green-600">Invitation sent!</p>
-      )}
-      {emailWarning && (
-        <p className="text-sm text-amber-600">{emailWarning}</p>
-      )}
     </form>
   );
 }

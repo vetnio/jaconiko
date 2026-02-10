@@ -149,7 +149,7 @@ export function ConnectRepo({
               >
                 <span className="text-sm font-medium">{repo.full_name}</span>
                 {isConnected ? (
-                  <span className="flex items-center gap-1 text-xs text-green-600">
+                  <span className="flex items-center gap-1 text-xs text-[var(--success)]">
                     <Check className="h-3.5 w-3.5" /> Connected
                   </span>
                 ) : (

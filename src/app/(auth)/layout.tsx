@@ -1,3 +1,5 @@
+import { Card, CardContent } from "@/components/ui/card";
+
 export default function AuthLayout({
   children,
 }: {
@@ -5,7 +7,9 @@ export default function AuthLayout({
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">{children}</div>
+      <Card className="w-full max-w-md">
+        <CardContent className="pt-6">{children}</CardContent>
+      </Card>
     </div>
   );
 }
