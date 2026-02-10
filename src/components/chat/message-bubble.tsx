@@ -1,7 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { User, Bot } from "lucide-react";
+import { User, Sparkles } from "lucide-react";
 import { ToolInvocation } from "./tool-invocation";
 
 interface ToolInvocationData {
@@ -24,7 +24,7 @@ export function MessageBubble({ role, content, toolInvocations }: MessageBubbleP
     <div className={`flex gap-3 ${isUser ? "justify-end" : ""}`}>
       {!isUser && (
         <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
-          <Bot className="h-4 w-4 text-[var(--primary-foreground)]" />
+          <Sparkles className="h-4 w-4 text-[var(--primary-foreground)]" />
         </div>
       )}
       <div

@@ -15,11 +15,13 @@ export function InviteForm({ workspaceId, onInvited }: InviteFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [emailWarning, setEmailWarning] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setSuccess(false);
+    setEmailWarning("");
     setLoading(true);
 
     try {
@@ -36,6 +38,11 @@ export function InviteForm({ workspaceId, onInvited }: InviteFormProps) {
         const data = await res.json();
         setError(data.error || "Failed to send invitation");
         return;
+      }
+
+      const data = await res.json();
+      if (data.emailWarning) {
+        setEmailWarning(data.emailWarning);
       }
 
       setSuccess(true);
@@ -74,8 +81,11 @@ export function InviteForm({ workspaceId, onInvited }: InviteFormProps) {
         </Button>
       </div>
       {error && <p className="text-sm text-[var(--destructive)]">{error}</p>}
-      {success && (
+      {success && !emailWarning && (
         <p className="text-sm text-green-600">Invitation sent!</p>
+      )}
+      {emailWarning && (
+        <p className="text-sm text-amber-600">{emailWarning}</p>
       )}
     </form>
   );

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { MemberList } from "@/components/workspace/member-list";
 import { InviteForm } from "@/components/workspace/invite-form";
+import { PendingInvitations } from "@/components/workspace/pending-invitations";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export default function WorkspaceSettingsPage() {
   const [renaming, setRenaming] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [inviteCount, setInviteCount] = useState(0);
 
   const fetchMembers = useCallback(() => {
     setError(null);
@@ -154,7 +156,23 @@ export default function WorkspaceSettingsPage() {
       {isAdmin && (
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-3">Invite a member</h2>
-          <InviteForm workspaceId={workspaceId} onInvited={fetchMembers} />
+          <InviteForm
+            workspaceId={workspaceId}
+            onInvited={() => {
+              fetchMembers();
+              setInviteCount((c) => c + 1);
+            }}
+          />
+        </section>
+      )}
+
+      {isAdmin && (
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">Pending invitations</h2>
+          <PendingInvitations
+            workspaceId={workspaceId}
+            refreshKey={inviteCount}
+          />
         </section>
       )}
 

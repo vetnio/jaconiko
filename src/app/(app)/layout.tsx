@@ -25,7 +25,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             align="right"
             trigger={
               <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--muted)] transition-colors text-sm">
-                <User className="h-4 w-4" />
+                <span className="w-6 h-6 rounded-full bg-[var(--muted)] flex items-center justify-center">
+                  <User className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
+                </span>
                 {session?.user?.name || "User"}
               </button>
             }

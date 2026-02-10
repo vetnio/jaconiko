@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { useChat } from "ai/react";
 import { MessageBubble } from "./message-bubble";
 import { Button } from "@/components/ui/button";
-import { Send, AlertCircle } from "lucide-react";
+import { ArrowUp, AlertCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
 interface ChatMessage {
@@ -144,8 +144,8 @@ export function ChatInterface({
             placeholder="Ask about your codebase..."
             className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
           />
-          <Button type="submit" disabled={isLoading || !input.trim()} className="flex items-center justify-center">
-            <Send className="h-5 w-5" />
+          <Button type="submit" disabled={isLoading || !input.trim()} className="shrink-0 rounded-full !p-2.5">
+            <ArrowUp className="h-4 w-4" />
           </Button>
         </form>
       </div>

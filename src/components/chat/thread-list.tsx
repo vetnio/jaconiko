@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { MessageSquare, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 
 interface Thread {
   id: string;
@@ -55,16 +55,16 @@ export function ThreadList({
 
   return (
     <div className="w-64 border-r border-[var(--border)] h-full flex flex-col">
-      <div className="p-3 border-b border-[var(--border)]">
-        <Button size="sm" className="w-full" onClick={onNewThread}>
+      <div className="p-2">
+        <Button variant="ghost" size="sm" className="w-full" onClick={onNewThread}>
           <Plus className="h-4 w-4 mr-1" /> New chat
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto py-1">
         {threads.map((thread) => (
           <div
             key={thread.id}
-            className={`group flex items-center gap-1 px-3 py-2 border-b border-[var(--border)] ${
+            className={`group flex items-center gap-1 mx-2 px-2 py-2 rounded-lg ${
               thread.id === currentThreadId
                 ? "bg-[var(--muted)]"
                 : "hover:bg-[var(--muted)]/50"
@@ -93,23 +93,22 @@ export function ThreadList({
               <>
                 <Link
                   href={`/workspace/${workspaceId}/project/${projectId}/chat/${thread.id}`}
-                  className="flex items-center gap-2 flex-1 min-w-0"
+                  className="flex items-center flex-1 min-w-0"
                 >
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)]" />
                   <span className="text-sm truncate">{thread.title}</span>
                 </Link>
                 <div className="hidden group-hover:flex items-center gap-0.5">
                   <button
                     onClick={() => startEdit(thread)}
-                    className="p-0.5 rounded hover:bg-[var(--border)] cursor-pointer"
+                    className="p-1 rounded hover:bg-[var(--border)] cursor-pointer"
                   >
-                    <Pencil className="h-3 w-3 text-[var(--muted-foreground)]" />
+                    <Pencil className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
                   </button>
                   <button
                     onClick={() => setDeleteTarget(thread.id)}
-                    className="p-0.5 rounded hover:bg-[var(--border)] cursor-pointer"
+                    className="p-1 rounded hover:bg-[var(--border)] cursor-pointer"
                   >
-                    <Trash2 className="h-3 w-3 text-[var(--destructive)]" />
+                    <Trash2 className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
                   </button>
                 </div>
               </>

@@ -35,7 +35,7 @@ export function ProjectList({ projects, workspaceId }: ProjectListProps) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FolderGit2 className="h-4 w-4 text-[var(--muted-foreground)]" />
+              <FolderGit2 className="h-4 w-4" />
               <span className="font-medium">{project.githubRepoFullName}</span>
             </div>
             <span className="text-xs text-green-600 flex items-center gap-1">
