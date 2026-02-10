@@ -1,33 +1,51 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { workspaceGithubInstallations } from "@/lib/db/schema";
+import { getMembership } from "@/lib/auth/membership";
+import { eq } from "drizzle-orm";
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const workspaceId = request.nextUrl.searchParams.get("workspaceId");
+  if (!workspaceId) {
+    return NextResponse.json(
+      { error: "workspaceId query param is required" },
+      { status: 400 }
+    );
+  }
+
+  const membership = await getMembership(session.user.id, workspaceId);
+  if (!membership) {
+    return NextResponse.json({ error: "Not a member" }, { status: 403 });
+  }
+
   try {
-    // Authenticate as the GitHub App
+    // Only fetch installations authorized for this workspace
+    const authorizedInstallations = await db
+      .select()
+      .from(workspaceGithubInstallations)
+      .where(eq(workspaceGithubInstallations.workspaceId, workspaceId));
+
+    if (authorizedInstallations.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    const allowedInstallationIds = new Set(
+      authorizedInstallations.map((i) => i.githubInstallationId)
+    );
+
     const appAuth = createAppAuth({
       appId: process.env.GITHUB_APP_ID!,
       privateKey: process.env.GITHUB_APP_PRIVATE_KEY!,
     });
-
-    const appOctokit = new Octokit({
-      authStrategy: createAppAuth,
-      auth: {
-        appId: process.env.GITHUB_APP_ID!,
-        privateKey: process.env.GITHUB_APP_PRIVATE_KEY!,
-      },
-    });
-
-    // List all installations of the GitHub App
-    const { data: installations } =
-      await appOctokit.apps.listInstallations();
 
     const allRepos: Array<{
       id: number;
@@ -36,18 +54,16 @@ export async function GET() {
       installationId: number;
     }> = [];
 
-    for (const installation of installations) {
-      // Get an installation access token
+    for (const installationId of allowedInstallationIds) {
       const installationAuth = await appAuth({
         type: "installation",
-        installationId: installation.id,
+        installationId,
       });
 
       const installationOctokit = new Octokit({
         auth: installationAuth.token,
       });
 
-      // List repos accessible to this installation
       const { data } =
         await installationOctokit.apps.listReposAccessibleToInstallation({
           per_page: 100,
@@ -58,7 +74,7 @@ export async function GET() {
           id: repo.id,
           full_name: repo.full_name,
           default_branch: repo.default_branch || "main",
-          installationId: installation.id,
+          installationId,
         });
       }
     }

@@ -17,6 +17,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userEmail = session.user.email.toLowerCase();
+
   const invitations = await db
     .select({
       id: workspaceInvitations.id,
@@ -33,7 +35,7 @@ export async function GET() {
     .innerJoin(user, eq(workspaceInvitations.invitedById, user.id))
     .where(
       and(
-        eq(workspaceInvitations.email, session.user.email),
+        eq(workspaceInvitations.email, userEmail),
         eq(workspaceInvitations.status, "pending")
       )
     );
@@ -57,6 +59,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { invitationId, action } = parsed.data;
+  const userEmail = session.user.email.toLowerCase();
 
   const [invitation] = await db
     .select()
@@ -64,7 +67,7 @@ export async function PATCH(request: NextRequest) {
     .where(
       and(
         eq(workspaceInvitations.id, invitationId),
-        eq(workspaceInvitations.email, session.user.email),
+        eq(workspaceInvitations.email, userEmail),
         eq(workspaceInvitations.status, "pending")
       )
     );
@@ -85,18 +88,26 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (action === "accept") {
-    await db.transaction(async (tx) => {
-      await tx.insert(workspaceMembers).values({
-        workspaceId: invitation.workspaceId,
-        userId: session.user.id,
-        role: invitation.role === "admin" ? "admin" : "user",
-      }).onConflictDoNothing();
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(workspaceMembers).values({
+          workspaceId: invitation.workspaceId,
+          userId: session.user.id,
+          role: invitation.role === "admin" ? "admin" : "user",
+        }).onConflictDoNothing();
 
-      await tx
-        .update(workspaceInvitations)
-        .set({ status: "accepted" })
-        .where(eq(workspaceInvitations.id, invitationId));
-    });
+        await tx
+          .update(workspaceInvitations)
+          .set({ status: "accepted" })
+          .where(eq(workspaceInvitations.id, invitationId));
+      });
+    } catch (err) {
+      console.error("Failed to accept invitation:", err);
+      return NextResponse.json(
+        { error: "Failed to accept invitation. Please try again." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ workspaceId: invitation.workspaceId });
   }

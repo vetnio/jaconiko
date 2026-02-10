@@ -20,6 +20,8 @@ export default function InvitationsPage() {
   const { data: session, isPending } = useSession();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [declineTarget, setDeclineTarget] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,15 +46,26 @@ export default function InvitationsPage() {
   }, [session, isPending, router]);
 
   async function handleAccept(invitationId: string) {
-    const res = await fetch(`/api/invitations`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invitationId, action: "accept" }),
-    });
+    setError(null);
+    setAcceptingId(invitationId);
+    try {
+      const res = await fetch(`/api/invitations`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitationId, action: "accept" }),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/workspace/${data.workspaceId}`);
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/workspace/${data.workspaceId}`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || `Failed to accept invitation (${res.status})`);
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setAcceptingId(null);
     }
   }
 
@@ -83,6 +96,12 @@ export default function InvitationsPage() {
           You&apos;ve been invited to join the following workspaces.
         </p>
 
+        {error && (
+          <div className="mb-4 px-4 py-2 rounded-lg bg-[var(--destructive)]/10 border border-[var(--destructive)]/20">
+            <p className="text-sm text-[var(--destructive)]">{error}</p>
+          </div>
+        )}
+
         {invitations.length === 0 ? (
           <div className="text-center py-8 border border-[var(--border)] rounded-lg">
             <p className="text-[var(--muted-foreground)] mb-4">
@@ -106,7 +125,12 @@ export default function InvitationsPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleAccept(inv.id)}>
+                  <Button
+                    size="sm"
+                    loading={acceptingId === inv.id}
+                    disabled={acceptingId !== null}
+                    onClick={() => handleAccept(inv.id)}
+                  >
                     Accept
                   </Button>
                   <Button

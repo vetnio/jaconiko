@@ -42,7 +42,7 @@ export function ConnectRepo({
     setFetchError(null);
 
     Promise.all([
-      fetch("/api/github/repos").then((r) => {
+      fetch(`/api/github/repos?workspaceId=${workspaceId}`).then((r) => {
         if (!r.ok) throw new Error(`Failed to load repos (${r.status})`);
         return r.json();
       }),
@@ -112,7 +112,7 @@ export function ConnectRepo({
             onClick={() => {
               setLoading(true);
               setFetchError(null);
-              fetch("/api/github/repos")
+              fetch(`/api/github/repos?workspaceId=${workspaceId}`)
                 .then((r) => {
                   if (!r.ok) throw new Error(`Failed to load repos (${r.status})`);
                   return r.json();
@@ -131,39 +131,60 @@ export function ConnectRepo({
             No GitHub repos available. Install the Jakoniko GitHub App first.
           </p>
           <Button
-            onClick={() => window.open(githubAppUrl, "_blank")}
+            onClick={() => {
+              // Set cookie so the callback can link this installation to the workspace
+              document.cookie = `github_install_workspace=${workspaceId}; path=/; max-age=600; SameSite=Lax`;
+              window.open(githubAppUrl, "_blank");
+            }}
           >
             Install GitHub App
           </Button>
         </div>
       ) : (
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {repos.map((repo) => {
-            const isConnected = connectedRepoIds.has(repo.id);
-            return (
-              <div
-                key={repo.id}
-                className={`flex items-center justify-between p-3 border border-[var(--border)] rounded-lg ${
-                  isConnected ? "opacity-60" : ""
-                }`}
-              >
-                <span className="text-sm font-medium">{repo.full_name}</span>
-                {isConnected ? (
-                  <span className="flex items-center gap-1 text-xs text-[var(--success)]">
-                    <Check className="h-3.5 w-3.5" /> Connected
-                  </span>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={() => handleConnect(repo)}
-                    disabled={connecting === repo.id}
-                  >
-                    {connecting === repo.id ? "Connecting..." : "Connect"}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+        <div>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {repos.map((repo) => {
+              const isConnected = connectedRepoIds.has(repo.id);
+              return (
+                <div
+                  key={repo.id}
+                  className={`flex items-center justify-between p-3 border border-[var(--border)] rounded-lg ${
+                    isConnected ? "opacity-60" : ""
+                  }`}
+                >
+                  <span className="text-sm font-medium">{repo.full_name}</span>
+                  {isConnected ? (
+                    <span className="flex items-center gap-1 text-xs text-[var(--success)]">
+                      <Check className="h-3.5 w-3.5" /> Connected
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => handleConnect(repo)}
+                      disabled={connecting === repo.id}
+                    >
+                      {connecting === repo.id ? "Connecting..." : "Connect"}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 pt-3 border-t border-[var(--border)] text-center">
+            <p className="text-sm text-[var(--muted-foreground)] mb-2">
+              Don&apos;t see your repository?
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                document.cookie = `github_install_workspace=${workspaceId}; path=/; max-age=600; SameSite=Lax`;
+                window.open(githubAppUrl, "_blank");
+              }}
+            >
+              Install GitHub App on another account
+            </Button>
+          </div>
         </div>
       )}
     </Modal>

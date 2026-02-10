@@ -161,14 +161,18 @@ export default function ChatPage() {
           return next;
         });
       } else {
+        let wasLoading = false;
         setLoadingThreadIds((prev) => {
           if (!prev.has(tid)) return prev;
+          wasLoading = true;
           const next = new Set(prev);
           next.delete(tid);
           return next;
         });
         // Thread finished while user was on a different thread → mark unread
-        if (tid !== activeThreadIdRef.current) {
+        // Guard: only if it was actually streaming (wasLoading), not just a
+        // ChatInterface mount firing onLoadingChange(false) on init
+        if (wasLoading && tid !== activeThreadIdRef.current) {
           messageCache.current.delete(tid);
           setUnreadThreadIds((prev) => {
             const next = new Set(prev);

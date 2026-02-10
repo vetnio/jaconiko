@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
+import { projects, workspaceGithubInstallations } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { createProjectSchema, deleteProjectSchema } from "@/lib/validations";
 import { getMembership } from "@/lib/auth/membership";
@@ -56,6 +56,24 @@ export async function POST(
 
   const { githubRepoId, githubRepoFullName, githubInstallationId, defaultBranch } =
     parsed.data;
+
+  // Verify the GitHub installation is authorized for this workspace
+  const [authorizedInstallation] = await db
+    .select()
+    .from(workspaceGithubInstallations)
+    .where(
+      and(
+        eq(workspaceGithubInstallations.workspaceId, workspaceId),
+        eq(workspaceGithubInstallations.githubInstallationId, githubInstallationId)
+      )
+    );
+
+  if (!authorizedInstallation) {
+    return NextResponse.json(
+      { error: "GitHub installation not authorized for this workspace" },
+      { status: 403 }
+    );
+  }
 
   const [project] = await db
     .insert(projects)
