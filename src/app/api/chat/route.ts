@@ -13,7 +13,6 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 import { createCodebaseTools } from "@/lib/chat/tools";
 import { buildSystemPrompt, buildMessages } from "@/lib/chat/prompt-builder";
-import { chatMessageSchema } from "@/lib/validations";
 import { getMembership } from "@/lib/auth/membership";
 
 export const maxDuration = 60;
@@ -25,12 +24,21 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const parsed = chatMessageSchema.safeParse(body);
-  if (!parsed.success) {
+
+  // useChat sends { messages: [...], threadId }
+  const threadId = body.threadId as string;
+  const incomingMessages = body.messages as Array<{ role: string; content: string }>;
+
+  if (!threadId || !incomingMessages?.length) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  const { threadId, message } = parsed.data;
+  const lastUserMessage = incomingMessages.filter((m) => m.role === "user").pop();
+  if (!lastUserMessage) {
+    return NextResponse.json({ error: "No user message" }, { status: 400 });
+  }
+
+  const message = lastUserMessage.content;
 
   // Verify thread and get project info
   const [thread] = await db
