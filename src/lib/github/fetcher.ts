@@ -1,3 +1,4 @@
+import { Octokit } from "@octokit/rest";
 import { getAuthenticatedOctokit } from "@/lib/github/app";
 
 interface RepoFile {
@@ -18,6 +19,7 @@ export async function fetchRepoTree(
     repo,
     tree_sha: branch,
     recursive: "1",
+    request: { signal: AbortSignal.timeout(30_000) },
   });
 
   if (!data.tree) {
@@ -30,21 +32,20 @@ export async function fetchRepoTree(
     .map((item) => item.path!);
 }
 
-export async function fetchFileContent(
-  installationId: number,
-  repoFullName: string,
+async function fetchFileContentWithOctokit(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
   branch: string,
   filePath: string
 ): Promise<string | null> {
-  const octokit = await getAuthenticatedOctokit(installationId);
-  const [owner, repo] = repoFullName.split("/");
-
   try {
     const { data } = await octokit.repos.getContent({
       owner,
       repo,
       path: filePath,
       ref: branch,
+      request: { signal: AbortSignal.timeout(15_000) },
     });
 
     if ("content" in data && data.encoding === "base64") {
@@ -53,9 +54,20 @@ export async function fetchFileContent(
 
     return null;
   } catch (err) {
-    console.error(`fetchFileContent failed for ${repoFullName}:${filePath}@${branch}`, err);
+    console.error(`fetchFileContent failed for ${owner}/${repo}:${filePath}@${branch}`, err);
     return null;
   }
+}
+
+export async function fetchFileContent(
+  installationId: number,
+  repoFullName: string,
+  branch: string,
+  filePath: string
+): Promise<string | null> {
+  const octokit = await getAuthenticatedOctokit(installationId);
+  const [owner, repo] = repoFullName.split("/");
+  return fetchFileContentWithOctokit(octokit, owner, repo, branch, filePath);
 }
 
 export async function fetchMultipleFiles(
@@ -64,6 +76,8 @@ export async function fetchMultipleFiles(
   branch: string,
   filePaths: string[]
 ): Promise<RepoFile[]> {
+  const octokit = await getAuthenticatedOctokit(installationId);
+  const [owner, repo] = repoFullName.split("/");
   const results: RepoFile[] = [];
 
   // Fetch in batches of 10 to avoid rate limits
@@ -72,9 +86,10 @@ export async function fetchMultipleFiles(
     const batch = filePaths.slice(i, i + batchSize);
     const batchResults = await Promise.allSettled(
       batch.map(async (path) => {
-        const content = await fetchFileContent(
-          installationId,
-          repoFullName,
+        const content = await fetchFileContentWithOctokit(
+          octokit,
+          owner,
+          repo,
           branch,
           path
         );

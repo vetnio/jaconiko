@@ -2,13 +2,22 @@
 
 import ReactMarkdown from "react-markdown";
 import { User, Bot } from "lucide-react";
+import { ToolInvocation } from "./tool-invocation";
+
+interface ToolInvocationData {
+  toolCallId: string;
+  toolName: string;
+  state: "call" | "result" | "partial-call";
+  args: Record<string, unknown>;
+}
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
   content: string;
+  toolInvocations?: ToolInvocationData[];
 }
 
-export function MessageBubble({ role, content }: MessageBubbleProps) {
+export function MessageBubble({ role, content, toolInvocations }: MessageBubbleProps) {
   const isUser = role === "user";
 
   return (
@@ -25,6 +34,18 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
             : "bg-[var(--muted)]"
         }`}
       >
+        {!isUser && toolInvocations && toolInvocations.length > 0 && (
+          <div className="mb-2 border-b border-[var(--border)] pb-2">
+            {toolInvocations.map((invocation) => (
+              <ToolInvocation
+                key={invocation.toolCallId}
+                toolName={invocation.toolName}
+                state={invocation.state}
+                args={invocation.args}
+              />
+            ))}
+          </div>
+        )}
         {isUser ? (
           <p className="text-sm whitespace-pre-wrap">{content}</p>
         ) : (

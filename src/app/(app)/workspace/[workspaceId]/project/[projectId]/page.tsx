@@ -3,9 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { IndexingProgress } from "@/components/project/indexing-progress";
 import { Spinner } from "@/components/ui/spinner";
-import { MessageSquare, Plus, ArrowLeft, RefreshCw, AlertCircle, Clock } from "lucide-react";
+import { MessageSquare, Plus, ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 interface Thread {
@@ -18,8 +17,6 @@ interface Thread {
 interface Project {
   id: string;
   githubRepoFullName: string;
-  indexingStatus: string;
-  indexingProgress: number;
 }
 
 export default function ProjectPage() {
@@ -31,7 +28,6 @@ export default function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reindexing, setReindexing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -72,20 +68,6 @@ export default function ProjectPage() {
     }
   }
 
-  async function handleReindex() {
-    setReindexing(true);
-    try {
-      await fetch(
-        `/api/workspaces/${workspaceId}/projects/${projectId}/reindex`,
-        { method: "POST" }
-      );
-      // Refresh project data to see new indexing status
-      setTimeout(fetchData, 1000);
-    } finally {
-      setReindexing(false);
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -108,60 +90,14 @@ export default function ProjectPage() {
           <h1 className="text-xl font-bold">
             {project?.githubRepoFullName || "Project"}
           </h1>
-          {project && (
-            <div className="mt-2 flex items-center gap-3">
-              <IndexingProgress
-                projectId={project.id}
-                workspaceId={workspaceId}
-                initialStatus={project.indexingStatus}
-                initialProgress={project.indexingProgress}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleReindex}
-                disabled={reindexing}
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 mr-1 ${reindexing ? "animate-spin" : ""}`}
-                />
-                {reindexing ? "Re-indexing..." : "Re-index"}
-              </Button>
-            </div>
-          )}
+          <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Connected
+          </p>
         </div>
         <Button onClick={handleNewChat}>
           <Plus className="h-4 w-4 mr-1" /> New chat
         </Button>
       </div>
-
-      {/* Status banners */}
-      {project?.indexingStatus === "pending" && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center gap-2">
-          <Clock className="h-4 w-4 text-yellow-600 shrink-0" />
-          <p className="text-sm text-yellow-700">
-            Indexing hasn&apos;t started yet. The codebase needs to be indexed
-            before you can chat with it.
-          </p>
-        </div>
-      )}
-      {project?.indexingStatus === "indexing" && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center gap-2">
-          <Spinner className="h-4 w-4 border-blue-400 border-t-blue-600 shrink-0" />
-          <p className="text-sm text-blue-700">
-            Indexing is in progress. You can start a chat, but results may be
-            incomplete until indexing finishes.
-          </p>
-        </div>
-      )}
-      {project?.indexingStatus === "failed" && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-[var(--destructive)]/10 border border-[var(--destructive)]/20 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-[var(--destructive)] shrink-0" />
-          <p className="text-sm text-[var(--destructive)]">
-            Indexing failed. Try re-indexing the codebase using the button above.
-          </p>
-        </div>
-      )}
 
       {threads.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-[var(--border)] rounded-lg">

@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
-import { runFullIndex } from "@/lib/indexing/orchestrator";
 import { createProjectSchema, deleteProjectSchema } from "@/lib/validations";
 import { getMembership } from "@/lib/auth/membership";
 
@@ -68,14 +67,6 @@ export async function POST(
       defaultBranch,
     })
     .returning();
-
-  // Fire-and-forget: start indexing immediately
-  runFullIndex(
-    project.id,
-    githubInstallationId,
-    githubRepoFullName,
-    defaultBranch
-  ).catch((err) => console.error("Background indexing failed:", err));
 
   return NextResponse.json(project, { status: 201 });
 }

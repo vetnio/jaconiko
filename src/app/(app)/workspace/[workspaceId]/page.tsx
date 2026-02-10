@@ -11,9 +11,6 @@ import { Plus, Settings, RefreshCw } from "lucide-react";
 interface Project {
   id: string;
   githubRepoFullName: string;
-  indexingStatus: string;
-  indexingProgress: number;
-  lastIndexedAt: string | null;
 }
 
 export default function WorkspacePage() {

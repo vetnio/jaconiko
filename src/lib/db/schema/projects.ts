@@ -3,21 +3,12 @@ import {
   uuid,
   varchar,
   timestamp,
-  pgEnum,
-  integer,
   bigint,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { workspaces } from "./workspaces";
-
-export const indexingStatusEnum = pgEnum("indexing_status", [
-  "pending",
-  "indexing",
-  "ready",
-  "failed",
-]);
 
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -34,11 +25,6 @@ export const projects = pgTable("projects", {
   defaultBranch: varchar("default_branch", { length: 255 })
     .notNull()
     .default("main"),
-  indexingStatus: indexingStatusEnum("indexing_status")
-    .notNull()
-    .default("pending"),
-  indexingProgress: integer("indexing_progress").notNull().default(0),
-  lastIndexedAt: timestamp("last_indexed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [

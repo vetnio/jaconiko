@@ -37,6 +37,7 @@ export function ChatInterface({
         role: m.role,
         content: m.content,
       })),
+      maxSteps: 15,
       onError: (error) => {
         setChatError(error.message || "Failed to send message. Please try again.");
       },
@@ -64,6 +65,14 @@ export function ChatInterface({
   useEffect(() => {
     if (input && chatError) setChatError(null);
   }, [input, chatError]);
+
+  // Detect if the AI is in a tool-use loop (last message has pending tool invocations)
+  const lastMessage = messages[messages.length - 1];
+  const isTooling =
+    isLoading &&
+    lastMessage?.role === "assistant" &&
+    lastMessage.toolInvocations &&
+    lastMessage.toolInvocations.length > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -99,9 +108,19 @@ export function ChatInterface({
             key={message.id}
             role={message.role as "user" | "assistant"}
             content={message.content}
+            toolInvocations={
+              message.toolInvocations as
+                | {
+                    toolCallId: string;
+                    toolName: string;
+                    state: "call" | "result" | "partial-call";
+                    args: Record<string, unknown>;
+                  }[]
+                | undefined
+            }
           />
         ))}
-        {isLoading && messages[messages.length - 1]?.role === "user" && (
+        {isLoading && !isTooling && messages[messages.length - 1]?.role === "user" && (
           <div className="flex gap-3">
             <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center shrink-0">
               <Spinner className="h-4 w-4 border-white/30 border-t-white" />

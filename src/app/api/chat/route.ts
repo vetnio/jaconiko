@@ -11,10 +11,12 @@ import {
 import { eq, and, asc } from "drizzle-orm";
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
-import { retrieveRelevantChunks } from "@/lib/chat/retriever";
+import { createCodebaseTools } from "@/lib/chat/tools";
 import { buildSystemPrompt, buildMessages } from "@/lib/chat/prompt-builder";
 import { chatMessageSchema } from "@/lib/validations";
 import { getMembership } from "@/lib/auth/membership";
+
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -73,9 +75,6 @@ export async function POST(request: NextRequest) {
     content: message,
   });
 
-  // Retrieve relevant code chunks
-  const chunks = await retrieveRelevantChunks(project.id, message);
-
   // Get conversation history
   const history = await db
     .select({ role: messages.role, content: messages.content })
@@ -83,10 +82,9 @@ export async function POST(request: NextRequest) {
     .where(eq(messages.threadId, threadId))
     .orderBy(asc(messages.createdAt));
 
-  // Build system prompt with context
+  // Build system prompt (no chunks needed)
   const systemPrompt = buildSystemPrompt(
     userData?.technicalLevel || null,
-    chunks,
     project.githubRepoFullName
   );
 
@@ -98,11 +96,20 @@ export async function POST(request: NextRequest) {
     message
   );
 
-  // Stream response
+  // Create codebase exploration tools
+  const tools = createCodebaseTools({
+    installationId: project.githubInstallationId,
+    repoFullName: project.githubRepoFullName,
+    defaultBranch: project.defaultBranch,
+  });
+
+  // Stream response with tool use
   const result = streamText({
     model: anthropic("claude-sonnet-4-5-20250929"),
     system: systemPrompt,
     messages: conversationMessages,
+    tools,
+    maxSteps: 15,
     onFinish: async ({ text }) => {
       // Save assistant response
       await db.insert(messages).values({
