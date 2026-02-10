@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, Loader2, BellDot } from "lucide-react";
 
 interface Thread {
   id: string;
@@ -14,6 +14,8 @@ interface Thread {
 interface ThreadListProps {
   threads: Thread[];
   activeThreadId: string;
+  loadingThreadIds: Set<string>;
+  unreadThreadIds: Set<string>;
   onSelectThread: (threadId: string) => void;
   onNewThread: () => void;
   onRename: (threadId: string, title: string) => void;
@@ -23,6 +25,8 @@ interface ThreadListProps {
 export function ThreadList({
   threads,
   activeThreadId,
+  loadingThreadIds,
+  unreadThreadIds,
   onSelectThread,
   onNewThread,
   onRename,
@@ -93,6 +97,11 @@ export function ThreadList({
                 >
                   <span className="text-sm truncate">{thread.title}</span>
                 </button>
+                {loadingThreadIds.has(thread.id) ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--muted-foreground)] shrink-0" />
+                ) : unreadThreadIds.has(thread.id) ? (
+                  <BellDot className="h-3.5 w-3.5 text-[var(--primary)] shrink-0" />
+                ) : null}
                 <div className="hidden group-hover:flex items-center gap-0.5">
                   <button
                     onClick={() => startEdit(thread)}

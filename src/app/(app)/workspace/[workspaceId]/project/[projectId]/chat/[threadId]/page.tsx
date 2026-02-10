@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { ThreadList } from "@/components/chat/thread-list";
@@ -27,11 +27,51 @@ export default function ChatPage() {
 
   const [activeThreadId, setActiveThreadId] = useState(initialThreadId);
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [messagesForActive, setMessagesForActive] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeReady, setActiveReady] = useState(false);
+  const [loadingThreadIds, setLoadingThreadIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [unreadThreadIds, setUnreadThreadIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const stored = localStorage.getItem(`unread-threads:${projectId}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
   const threadsRef = useRef<Thread[]>([]);
   const messageCache = useRef<Map<string, ChatMessage[]>>(new Map());
   const initializedRef = useRef(false);
+  const activeThreadIdRef = useRef(activeThreadId);
+  const loadingThreadIdsRef = useRef(loadingThreadIds);
+
+  // Keep refs in sync
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
+  useEffect(() => {
+    loadingThreadIdsRef.current = loadingThreadIds;
+  }, [loadingThreadIds]);
+
+  // Persist unreadThreadIds to localStorage
+  useEffect(() => {
+    localStorage.setItem(
+      `unread-threads:${projectId}`,
+      JSON.stringify([...unreadThreadIds])
+    );
+  }, [unreadThreadIds, projectId]);
+
+  // Compute which ChatInterfaces should be mounted
+  const mountedThreadIds = useMemo(() => {
+    const set = new Set(loadingThreadIds);
+    if (activeReady) {
+      set.add(activeThreadId);
+    }
+    return set;
+  }, [loadingThreadIds, activeReady, activeThreadId]);
 
   const fetchThreads = useCallback(async (): Promise<Thread[]> => {
     try {
@@ -72,11 +112,11 @@ export default function ChatPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [, msgs] = await Promise.all([
+        await Promise.all([
           fetchThreads(),
           fetchMessages(initialThreadId),
         ]);
-        setMessagesForActive(msgs);
+        setActiveReady(true);
       } finally {
         initializedRef.current = true;
         setLoading(false);
@@ -86,36 +126,104 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load messages when activeThreadId changes (after initial load)
+  // Fetch messages when activeReady is false (cache miss / thread switch)
   useEffect(() => {
     if (!initializedRef.current) return;
+    if (activeReady) return;
 
-    const cached = messageCache.current.get(activeThreadId);
-    if (cached) {
-      setMessagesForActive(cached);
-    } else {
-      fetchMessages(activeThreadId).then((msgs) => {
-        setMessagesForActive(msgs);
-      });
+    // Thread is already mounted with live streaming data
+    if (loadingThreadIdsRef.current.has(activeThreadId)) {
+      setActiveReady(true);
+      return;
     }
-  }, [activeThreadId, fetchMessages]);
+
+    // Check cache
+    if (messageCache.current.has(activeThreadId)) {
+      setActiveReady(true);
+      return;
+    }
+
+    // Fetch from server
+    fetchMessages(activeThreadId).then(() => {
+      if (activeThreadIdRef.current === activeThreadId) {
+        setActiveReady(true);
+      }
+    });
+  }, [activeThreadId, activeReady, fetchMessages]);
+
+  const handleLoadingChange = useCallback(
+    (tid: string, isLoadingNow: boolean) => {
+      if (isLoadingNow) {
+        setLoadingThreadIds((prev) => {
+          if (prev.has(tid)) return prev;
+          const next = new Set(prev);
+          next.add(tid);
+          return next;
+        });
+      } else {
+        setLoadingThreadIds((prev) => {
+          if (!prev.has(tid)) return prev;
+          const next = new Set(prev);
+          next.delete(tid);
+          return next;
+        });
+        // Thread finished while user was on a different thread → mark unread
+        if (tid !== activeThreadIdRef.current) {
+          messageCache.current.delete(tid);
+          setUnreadThreadIds((prev) => {
+            const next = new Set(prev);
+            next.add(tid);
+            return next;
+          });
+        }
+      }
+    },
+    []
+  );
 
   const handleSelectThread = useCallback(
     (tid: string) => {
-      if (tid === activeThreadId) return;
+      if (tid === activeThreadIdRef.current) return;
       setActiveThreadId(tid);
       const newUrl = `/workspace/${workspaceId}/project/${projectId}/chat/${tid}`;
       window.history.pushState(null, "", newUrl);
+
+      // Clear unread for selected thread
+      setUnreadThreadIds((prev) => {
+        if (!prev.has(tid)) return prev;
+        const next = new Set(prev);
+        next.delete(tid);
+        return next;
+      });
+
+      // Determine if thread is immediately ready
+      if (
+        loadingThreadIdsRef.current.has(tid) ||
+        messageCache.current.has(tid)
+      ) {
+        setActiveReady(true);
+      } else {
+        setActiveReady(false);
+      }
     },
-    [activeThreadId, workspaceId, projectId]
+    [workspaceId, projectId]
   );
 
   // Browser back/forward support
   useEffect(() => {
     function handlePopState() {
       const match = window.location.pathname.match(/\/chat\/([^/]+)/);
-      if (match?.[1]) {
-        setActiveThreadId(match[1]);
+      if (match?.[1] && match[1] !== activeThreadIdRef.current) {
+        const tid = match[1];
+        setActiveThreadId(tid);
+        setUnreadThreadIds((prev) => {
+          if (!prev.has(tid)) return prev;
+          const next = new Set(prev);
+          next.delete(tid);
+          return next;
+        });
+        // Let the activeReady effect handle fetching
+        setActiveReady(false);
       }
     }
     window.addEventListener("popstate", handlePopState);
@@ -167,9 +275,22 @@ export default function ChatPage() {
       if (!res.ok) return;
 
       messageCache.current.delete(tid);
+      setLoadingThreadIds((prev) => {
+        if (!prev.has(tid)) return prev;
+        const next = new Set(prev);
+        next.delete(tid);
+        return next;
+      });
+      setUnreadThreadIds((prev) => {
+        if (!prev.has(tid)) return prev;
+        const next = new Set(prev);
+        next.delete(tid);
+        return next;
+      });
+
       const updatedThreads = await fetchThreads();
 
-      if (tid === activeThreadId) {
+      if (tid === activeThreadIdRef.current) {
         const remaining = updatedThreads.filter((t) => t.id !== tid);
         if (remaining.length > 0) {
           handleSelectThread(remaining[0].id);
@@ -182,11 +303,11 @@ export default function ChatPage() {
     }
   }
 
-  async function handleFirstMessage(message: string) {
+  async function handleFirstMessage(tid: string, message: string) {
     fetch("/api/chat/title", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ threadId: activeThreadId, firstMessage: message }),
+      body: JSON.stringify({ threadId: tid, firstMessage: message }),
     })
       .then(() => fetchThreads())
       .catch(() => {
@@ -207,18 +328,32 @@ export default function ChatPage() {
       <ThreadList
         threads={threads}
         activeThreadId={activeThreadId}
+        loadingThreadIds={loadingThreadIds}
+        unreadThreadIds={unreadThreadIds}
         onSelectThread={handleSelectThread}
         onNewThread={handleNewThread}
         onRename={handleRename}
         onDelete={handleDelete}
       />
-      <div className="flex-1">
-        <ChatInterface
-          key={activeThreadId}
-          threadId={activeThreadId}
-          initialMessages={messagesForActive}
-          onFirstMessage={handleFirstMessage}
-        />
+      <div className="flex-1 relative">
+        {!mountedThreadIds.has(activeThreadId) && (
+          <div className="flex justify-center py-20">
+            <Spinner className="h-8 w-8" />
+          </div>
+        )}
+        {Array.from(mountedThreadIds).map((tid) => (
+          <div
+            key={tid}
+            className={tid === activeThreadId ? "h-full" : "hidden"}
+          >
+            <ChatInterface
+              threadId={tid}
+              initialMessages={messageCache.current.get(tid) || []}
+              onFirstMessage={(msg) => handleFirstMessage(tid, msg)}
+              onLoadingChange={(isLoading) => handleLoadingChange(tid, isLoading)}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

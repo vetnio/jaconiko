@@ -17,16 +17,20 @@ interface ChatInterfaceProps {
   threadId: string;
   initialMessages: ChatMessage[];
   onFirstMessage?: (message: string) => void;
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
 export function ChatInterface({
   threadId,
   initialMessages,
   onFirstMessage,
+  onLoadingChange,
 }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [titleGenerated, setTitleGenerated] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const onLoadingChangeRef = useRef(onLoadingChange);
+  onLoadingChangeRef.current = onLoadingChange;
 
   const { messages, input, handleInputChange, handleSubmit, isLoading } =
     useChat({
@@ -42,6 +46,11 @@ export function ChatInterface({
         setChatError(error.message || "Failed to send message. Please try again.");
       },
     });
+
+  // Report loading state changes
+  useEffect(() => {
+    onLoadingChangeRef.current?.(isLoading);
+  }, [isLoading]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
