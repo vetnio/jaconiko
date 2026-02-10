@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
@@ -15,8 +13,8 @@ interface Thread {
 
 interface ThreadListProps {
   threads: Thread[];
-  workspaceId: string;
-  projectId: string;
+  activeThreadId: string;
+  onSelectThread: (threadId: string) => void;
   onNewThread: () => void;
   onRename: (threadId: string, title: string) => void;
   onDelete: (threadId: string) => void;
@@ -24,14 +22,12 @@ interface ThreadListProps {
 
 export function ThreadList({
   threads,
-  workspaceId,
-  projectId,
+  activeThreadId,
+  onSelectThread,
   onNewThread,
   onRename,
   onDelete,
 }: ThreadListProps) {
-  const params = useParams();
-  const currentThreadId = params.threadId as string;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -65,7 +61,7 @@ export function ThreadList({
           <div
             key={thread.id}
             className={`group flex items-center gap-1 mx-2 px-2 py-2 rounded-lg ${
-              thread.id === currentThreadId
+              thread.id === activeThreadId
                 ? "bg-[var(--muted)]"
                 : "hover:bg-[var(--muted)]/50"
             }`}
@@ -91,12 +87,12 @@ export function ThreadList({
               </div>
             ) : (
               <>
-                <Link
-                  href={`/workspace/${workspaceId}/project/${projectId}/chat/${thread.id}`}
-                  className="flex items-center flex-1 min-w-0"
+                <button
+                  onClick={() => onSelectThread(thread.id)}
+                  className="flex items-center flex-1 min-w-0 text-left"
                 >
                   <span className="text-sm truncate">{thread.title}</span>
-                </Link>
+                </button>
                 <div className="hidden group-hover:flex items-center gap-0.5">
                   <button
                     onClick={() => startEdit(thread)}

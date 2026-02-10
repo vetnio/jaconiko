@@ -23,12 +23,15 @@ export default function ChatPage() {
   const router = useRouter();
   const workspaceId = params.workspaceId as string;
   const projectId = params.projectId as string;
-  const threadId = params.threadId as string;
+  const initialThreadId = params.threadId as string;
 
+  const [activeThreadId, setActiveThreadId] = useState(initialThreadId);
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesForActive, setMessagesForActive] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const threadsRef = useRef<Thread[]>([]);
+  const messageCache = useRef<Map<string, ChatMessage[]>>(new Map());
+  const initializedRef = useRef(false);
 
   const fetchThreads = useCallback(async (): Promise<Thread[]> => {
     try {
@@ -46,26 +49,78 @@ export default function ChatPage() {
     return threadsRef.current;
   }, [projectId]);
 
+  const fetchMessages = useCallback(
+    async (tid: string): Promise<ChatMessage[]> => {
+      try {
+        const res = await fetch(`/api/threads/${tid}/messages`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            messageCache.current.set(tid, data);
+            return data;
+          }
+        }
+      } catch {
+        // Fall through
+      }
+      return [];
+    },
+    []
+  );
+
+  // Initial load
   useEffect(() => {
     async function load() {
       try {
-        const [, messagesRes] = await Promise.all([
+        const [, msgs] = await Promise.all([
           fetchThreads(),
-          fetch(`/api/threads/${threadId}/messages`),
+          fetchMessages(initialThreadId),
         ]);
-
-        if (messagesRes.ok) {
-          const messagesData = await messagesRes.json();
-          if (Array.isArray(messagesData)) {
-            setMessages(messagesData);
-          }
-        }
+        setMessagesForActive(msgs);
       } finally {
+        initializedRef.current = true;
         setLoading(false);
       }
     }
     load();
-  }, [threadId, projectId, fetchThreads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load messages when activeThreadId changes (after initial load)
+  useEffect(() => {
+    if (!initializedRef.current) return;
+
+    const cached = messageCache.current.get(activeThreadId);
+    if (cached) {
+      setMessagesForActive(cached);
+    } else {
+      fetchMessages(activeThreadId).then((msgs) => {
+        setMessagesForActive(msgs);
+      });
+    }
+  }, [activeThreadId, fetchMessages]);
+
+  const handleSelectThread = useCallback(
+    (tid: string) => {
+      if (tid === activeThreadId) return;
+      setActiveThreadId(tid);
+      const newUrl = `/workspace/${workspaceId}/project/${projectId}/chat/${tid}`;
+      window.history.pushState(null, "", newUrl);
+    },
+    [activeThreadId, workspaceId, projectId]
+  );
+
+  // Browser back/forward support
+  useEffect(() => {
+    function handlePopState() {
+      const match = window.location.pathname.match(/\/chat\/([^/]+)/);
+      if (match?.[1]) {
+        setActiveThreadId(match[1]);
+      }
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   async function handleNewThread() {
     try {
@@ -77,9 +132,9 @@ export default function ChatPage() {
 
       if (res.ok) {
         const thread = await res.json();
-        router.push(
-          `/workspace/${workspaceId}/project/${projectId}/chat/${thread.id}`
-        );
+        messageCache.current.set(thread.id, []);
+        await fetchThreads();
+        handleSelectThread(thread.id);
       }
     } catch {
       // Silently fail — user can retry
@@ -111,14 +166,13 @@ export default function ChatPage() {
 
       if (!res.ok) return;
 
+      messageCache.current.delete(tid);
       const updatedThreads = await fetchThreads();
 
-      if (tid === threadId) {
+      if (tid === activeThreadId) {
         const remaining = updatedThreads.filter((t) => t.id !== tid);
         if (remaining.length > 0) {
-          router.push(
-            `/workspace/${workspaceId}/project/${projectId}/chat/${remaining[0].id}`
-          );
+          handleSelectThread(remaining[0].id);
         } else {
           router.push(`/workspace/${workspaceId}/project/${projectId}`);
         }
@@ -129,11 +183,10 @@ export default function ChatPage() {
   }
 
   async function handleFirstMessage(message: string) {
-    // Auto-generate title
     fetch("/api/chat/title", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ threadId, firstMessage: message }),
+      body: JSON.stringify({ threadId: activeThreadId, firstMessage: message }),
     })
       .then(() => fetchThreads())
       .catch(() => {
@@ -153,16 +206,17 @@ export default function ChatPage() {
     <div className="flex h-[calc(100vh-3.5rem)]">
       <ThreadList
         threads={threads}
-        workspaceId={workspaceId}
-        projectId={projectId}
+        activeThreadId={activeThreadId}
+        onSelectThread={handleSelectThread}
         onNewThread={handleNewThread}
         onRename={handleRename}
         onDelete={handleDelete}
       />
       <div className="flex-1">
         <ChatInterface
-          threadId={threadId}
-          initialMessages={messages}
+          key={activeThreadId}
+          threadId={activeThreadId}
+          initialMessages={messagesForActive}
           onFirstMessage={handleFirstMessage}
         />
       </div>
