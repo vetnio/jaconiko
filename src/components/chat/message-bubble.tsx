@@ -28,7 +28,7 @@ export function MessageBubble({ role, content, toolInvocations }: MessageBubbleP
         </div>
       )}
       <div
-        className={`max-w-[80%] rounded-lg px-4 py-3 ${
+        className={`max-w-[80%] min-w-0 overflow-hidden rounded-lg px-4 py-3 ${
           isUser
             ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
             : "bg-[var(--muted)]"
@@ -49,7 +49,7 @@ export function MessageBubble({ role, content, toolInvocations }: MessageBubbleP
         {isUser ? (
           <p className="text-sm whitespace-pre-wrap">{content}</p>
         ) : (
-          <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+          <div className="text-sm prose prose-sm max-w-none dark:prose-invert overflow-x-auto break-words [word-break:break-word]">
             <ReactMarkdown>{content}</ReactMarkdown>
           </div>
         )}
