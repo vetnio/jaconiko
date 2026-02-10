@@ -49,7 +49,7 @@ export function MessageBubble({ role, content, toolInvocations }: MessageBubbleP
         {isUser ? (
           <p className="text-sm whitespace-pre-wrap">{content}</p>
         ) : (
-          <div className="text-sm prose prose-sm max-w-none dark:prose-invert overflow-x-auto break-words [word-break:break-word]">
+          <div className="text-sm prose prose-sm max-w-none dark:prose-invert overflow-x-auto break-words [word-break:break-word] [&_code]:break-all [&_pre]:overflow-x-auto">
             <ReactMarkdown>{content}</ReactMarkdown>
           </div>
         )}
