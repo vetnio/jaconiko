@@ -3,9 +3,9 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { projects, workspaceGithubInstallations } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createProjectSchema, deleteProjectSchema } from "@/lib/validations";
-import { getMembership } from "@/lib/auth/membership";
+import { getMembership, verifyInstallation } from "@/lib/auth/membership";
 
 export async function GET(
   _request: NextRequest,
@@ -22,10 +22,20 @@ export async function GET(
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
   }
 
+  const authorizedInstallationIds = db
+    .select({ id: workspaceGithubInstallations.githubInstallationId })
+    .from(workspaceGithubInstallations)
+    .where(eq(workspaceGithubInstallations.workspaceId, workspaceId));
+
   const projectList = await db
     .select()
     .from(projects)
-    .where(eq(projects.workspaceId, workspaceId));
+    .where(
+      and(
+        eq(projects.workspaceId, workspaceId),
+        inArray(projects.githubInstallationId, authorizedInstallationIds)
+      )
+    );
 
   return NextResponse.json(projectList);
 }
@@ -58,17 +68,8 @@ export async function POST(
     parsed.data;
 
   // Verify the GitHub installation is authorized for this workspace
-  const [authorizedInstallation] = await db
-    .select()
-    .from(workspaceGithubInstallations)
-    .where(
-      and(
-        eq(workspaceGithubInstallations.workspaceId, workspaceId),
-        eq(workspaceGithubInstallations.githubInstallationId, githubInstallationId)
-      )
-    );
-
-  if (!authorizedInstallation) {
+  const installationAuthorized = await verifyInstallation(workspaceId, githubInstallationId);
+  if (!installationAuthorized) {
     return NextResponse.json(
       { error: "GitHub installation not authorized for this workspace" },
       { status: 403 }

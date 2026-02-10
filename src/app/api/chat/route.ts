@@ -13,7 +13,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 import { createCodebaseTools } from "@/lib/chat/tools";
 import { buildSystemPrompt, buildMessages } from "@/lib/chat/prompt-builder";
-import { getMembership } from "@/lib/auth/membership";
+import { getMembership, verifyInstallation } from "@/lib/auth/membership";
 
 export const maxDuration = 60;
 
@@ -68,6 +68,18 @@ export async function POST(request: NextRequest) {
   const membership = await getMembership(session.user.id, project.workspaceId);
   if (!membership) {
     return NextResponse.json({ error: "Not a workspace member" }, { status: 403 });
+  }
+
+  // Verify GitHub installation is authorized for this workspace
+  const installationAuthorized = await verifyInstallation(
+    project.workspaceId,
+    project.githubInstallationId
+  );
+  if (!installationAuthorized) {
+    return NextResponse.json(
+      { error: "GitHub installation not authorized for this workspace" },
+      { status: 403 }
+    );
   }
 
   // Get user's technical level

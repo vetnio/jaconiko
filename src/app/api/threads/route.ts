@@ -9,7 +9,7 @@ import {
   updateThreadSchema,
   deleteThreadSchema,
 } from "@/lib/validations";
-import { getMembership, verifyThreadAccess } from "@/lib/auth/membership";
+import { getMembership, verifyInstallation, verifyThreadAccess } from "@/lib/auth/membership";
 
 export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -38,6 +38,17 @@ export async function GET(request: NextRequest) {
   const membership = await getMembership(session.user.id, project.workspaceId);
   if (!membership) {
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
+  }
+
+  const installationAuthorized = await verifyInstallation(
+    project.workspaceId,
+    project.githubInstallationId
+  );
+  if (!installationAuthorized) {
+    return NextResponse.json(
+      { error: "GitHub installation not authorized for this workspace" },
+      { status: 403 }
+    );
   }
 
   const threads = await db
@@ -82,6 +93,17 @@ export async function POST(request: NextRequest) {
   const membership = await getMembership(session.user.id, project.workspaceId);
   if (!membership) {
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
+  }
+
+  const installationAuthorized = await verifyInstallation(
+    project.workspaceId,
+    project.githubInstallationId
+  );
+  if (!installationAuthorized) {
+    return NextResponse.json(
+      { error: "GitHub installation not authorized for this workspace" },
+      { status: 403 }
+    );
   }
 
   const [thread] = await db
