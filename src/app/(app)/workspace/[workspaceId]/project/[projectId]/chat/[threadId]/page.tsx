@@ -328,7 +328,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="flex h-full">
       <ThreadList
         threads={threads}
         activeThreadId={activeThreadId}
