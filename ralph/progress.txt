@@ -143,3 +143,29 @@
   - System prompt instruction blocks are composed via string concatenation with template literal constants
   - The prompt builder has separate concerns: base prompt per technical level, tool instructions, DB instructions (conditional), dashboard instructions, and conciseness instructions
 ---
+
+## 2026-02-25 - US-011
+- What was implemented: Added bookmark toggle button to the dashboard view page header. Button fetches bookmark status on mount via GET /api/bookmarks/dashboards, toggles via POST/DELETE /api/dashboards/[dashboardId]/bookmark, shows Bookmark/BookmarkCheck Lucide icons, and displays toast notifications on success/error.
+- Files changed:
+  - `src/app/(app)/workspace/[workspaceId]/project/[projectId]/dashboard/[dashboardId]/page.tsx` — added bookmark state, fetch-on-mount effect, toggle handler, and bookmark button in header
+  - `ralph/prd.json` — marked US-011 as passes: true
+- **Learnings for future iterations:**
+  - The bookmark list endpoint (GET /api/bookmarks/dashboards) returns all bookmarks for the user — filter client-side by dashboardId to check if a specific dashboard is bookmarked
+  - Toast API: `useToast()` returns `{ success, error, info }` functions that take a message string
+  - Bookmark button uses optimistic-like pattern: toggle state immediately after API success, show toast
+  - All hooks (useToast, useState, useEffect, useCallback) must be called before any early return in the component
+---
+
+## 2026-02-25 - US-012
+- What was implemented: Added "Bookmarked Dashboards" section to the chat page sidebar. Created `BookmarkedDashboards` component that fetches bookmarks from GET /api/bookmarks/dashboards, filters by projectId, and displays each as a clickable link with title, icon, and creation date. Restructured the chat page sidebar to use an `<aside>` wrapper containing both ThreadList and BookmarkedDashboards. Moved ThreadList's outer container styling (w-64, border-r) to the sidebar wrapper so both components share the same container.
+- Files changed:
+  - `src/components/dashboard/bookmarked-dashboards.tsx` — new component fetching and displaying bookmarked dashboards
+  - `src/components/chat/thread-list.tsx` — removed outer container styling (w-64, border-r), now uses flex-1 min-h-0
+  - `src/app/(app)/workspace/[workspaceId]/project/[projectId]/chat/[threadId]/page.tsx` — added sidebar `<aside>` wrapper, imported and rendered BookmarkedDashboards
+  - `ralph/prd.json` — marked US-012 as passes: true
+- **Learnings for future iterations:**
+  - ThreadList's outer container styling was moved to a sidebar `<aside>` wrapper in the chat page to allow additional sidebar sections
+  - BookmarkedDashboards is self-contained (does its own fetch) — follows the same pattern as bookmark status in the dashboard view page
+  - The bookmarks API returns `id` (dashboard id), `title`, `createdAt`, `projectId`, `bookmarkedAt` — filter by projectId client-side
+  - Sidebar section pattern: border-t separator, uppercase tracking-wider label, items list
+---
