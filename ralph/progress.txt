@@ -169,3 +169,17 @@
   - The bookmarks API returns `id` (dashboard id), `title`, `createdAt`, `projectId`, `bookmarkedAt` — filter by projectId client-side
   - Sidebar section pattern: border-t separator, uppercase tracking-wider label, items list
 ---
+
+## 2026-02-25 - US-013
+- What was implemented: Added dashboard editing capabilities to the dashboard view page. Edit mode allows changing the dashboard title, switching widget chart types (bar/line/pie/table/kpi), selecting color schemes for chart widgets, and reordering widgets via up/down buttons. Changes are saved via PATCH /api/dashboards/[dashboardId] and can be discarded with Cancel.
+- Files changed:
+  - `src/app/(app)/workspace/[workspaceId]/project/[projectId]/dashboard/[dashboardId]/page.tsx` — added EditWidgetCard component, edit mode state (editing, editTitle, editWidgets, saving), Edit/Save/Cancel buttons in header, title inline editing, widget type dropdown, color scheme selector, up/down reorder buttons, save via PATCH API
+  - `ralph/prd.json` — marked US-013 as passes: true
+- **Learnings for future iterations:**
+  - The dashboard page is already owner-only (API returns 403 for non-owners), so the Edit button can always be shown when dashboard loads
+  - Widget reordering uses array index swap pattern with `setEditWidgets` functional updater to avoid stale state
+  - Color scheme selection works by setting `config.colors` array — chart components already support this via their config prop
+  - `saveChanges` maps editWidgets to the PATCH schema format: each widget needs id, type, title, config, data, and position (index-based)
+  - The `Button` component from `@/components/ui/button` supports variants: primary, secondary, ghost, destructive — and sizes: sm, md, lg
+  - When editing, the live preview updates in real-time using `WidgetRenderer` with the modified widget state
+---
