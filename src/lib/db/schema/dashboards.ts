@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   index,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { projects } from "./projects";
@@ -67,11 +68,36 @@ export const dashboardsRelations = relations(dashboards, ({ one, many }) => ({
     references: [chatThreads.id],
   }),
   widgets: many(dashboardWidgets),
+  bookmarks: many(dashboardBookmarks),
 }));
 
 export const dashboardWidgetsRelations = relations(dashboardWidgets, ({ one }) => ({
   dashboard: one(dashboards, {
     fields: [dashboardWidgets.dashboardId],
     references: [dashboards.id],
+  }),
+}));
+
+export const dashboardBookmarks = pgTable("dashboard_bookmarks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  dashboardId: uuid("dashboard_id")
+    .notNull()
+    .references(() => dashboards.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("dashboard_bookmarks_dashboard_user_unique").on(table.dashboardId, table.userId),
+]);
+
+export const dashboardBookmarksRelations = relations(dashboardBookmarks, ({ one }) => ({
+  dashboard: one(dashboards, {
+    fields: [dashboardBookmarks.dashboardId],
+    references: [dashboards.id],
+  }),
+  user: one(user, {
+    fields: [dashboardBookmarks.userId],
+    references: [user.id],
   }),
 }));
