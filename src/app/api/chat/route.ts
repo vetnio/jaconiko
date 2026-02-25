@@ -148,6 +148,12 @@ export async function POST(request: NextRequest) {
           },
         }
       : {}),
+    dashboard: {
+      projectId: thread.projectId,
+      userId: session.user.id,
+      workspaceId: project.workspaceId,
+      threadId,
+    },
   });
 
   // Stream response with tool use
