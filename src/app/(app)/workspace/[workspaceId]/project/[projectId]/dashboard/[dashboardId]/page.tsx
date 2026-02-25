@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { useToast } from "@/components/ui/toast";
 import { BarChart } from "@/components/dashboard/bar-chart";
 import { LineChart } from "@/components/dashboard/line-chart";
 import { PieChart } from "@/components/dashboard/pie-chart";
@@ -105,10 +107,13 @@ function WidgetRenderer({ widget }: { widget: DashboardWidget }) {
 export default function DashboardPage() {
   const params = useParams();
   const dashboardId = params.dashboardId as string;
+  const toast = useToast();
 
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -138,6 +143,39 @@ export default function DashboardPage() {
     fetchDashboard();
   }, [dashboardId]);
 
+  useEffect(() => {
+    async function fetchBookmarkStatus() {
+      try {
+        const res = await fetch("/api/bookmarks/dashboards");
+        if (!res.ok) return;
+        const bookmarks: { dashboardId: string }[] = await res.json();
+        setBookmarked(bookmarks.some((b) => b.dashboardId === dashboardId));
+      } catch {
+        // Silently fail — bookmark status is non-critical
+      }
+    }
+
+    fetchBookmarkStatus();
+  }, [dashboardId]);
+
+  const toggleBookmark = useCallback(async () => {
+    setBookmarkLoading(true);
+    try {
+      const method = bookmarked ? "DELETE" : "POST";
+      const res = await fetch(`/api/dashboards/${dashboardId}/bookmark`, { method });
+      if (!res.ok) {
+        toast.error("Failed to update bookmark");
+        return;
+      }
+      setBookmarked(!bookmarked);
+      toast.success(bookmarked ? "Bookmark removed" : "Dashboard bookmarked");
+    } catch {
+      toast.error("Failed to update bookmark");
+    } finally {
+      setBookmarkLoading(false);
+    }
+  }, [bookmarked, dashboardId, toast]);
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -161,13 +199,27 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          {dashboard.title}
-        </h1>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Created {new Date(dashboard.createdAt).toLocaleDateString()}
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">
+            {dashboard.title}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            Created {new Date(dashboard.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+        <button
+          onClick={toggleBookmark}
+          disabled={bookmarkLoading}
+          className="mt-1 rounded-lg p-2 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] disabled:opacity-50"
+          title={bookmarked ? "Remove bookmark" : "Bookmark dashboard"}
+        >
+          {bookmarked ? (
+            <BookmarkCheck className="h-5 w-5 text-[var(--primary)]" />
+          ) : (
+            <Bookmark className="h-5 w-5" />
+          )}
+        </button>
       </div>
 
       {dashboard.widgets.length === 0 ? (
