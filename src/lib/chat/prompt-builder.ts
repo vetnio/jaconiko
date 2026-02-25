@@ -1,3 +1,5 @@
+import type { SchemaColumn } from "@/lib/db/user-db";
+
 type TechnicalLevel = "non_technical" | "semi_technical" | "technical" | null;
 
 const TOOL_INSTRUCTIONS = `
@@ -13,6 +15,18 @@ Strategy:
 3. Use readFile to inspect specific files in detail
 4. Always cite file paths when referencing code
 5. If searchCode is unavailable, fall back to listFiles + readFile`;
+
+const DB_TOOL_INSTRUCTIONS = `
+
+You also have access to:
+- **queryDatabase**: Execute read-only SQL queries against the project's connected database
+
+Database query guidelines:
+1. Only SELECT and WITH (CTE) queries are allowed — no writes, DDL, or data modifications
+2. Always use the schema information below to write correct queries
+3. Limit results when exploring data (e.g. LIMIT 20) to keep responses concise
+4. When asked about data, use queryDatabase to get real answers instead of guessing
+5. Present query results in a clear, readable format (tables for small results, summaries for large ones)`;
 
 const CONCISENESS_INSTRUCTIONS = `
 
@@ -58,11 +72,42 @@ Rules:
 
 export function buildSystemPrompt(
   technicalLevel: TechnicalLevel,
-  repoName: string
+  repoName: string,
+  dbSchema?: SchemaColumn[]
 ): string {
   const level = technicalLevel || "semi_technical";
   const basePrompt = SYSTEM_PROMPTS[level] || SYSTEM_PROMPTS.semi_technical;
-  return `${basePrompt}\n\nRepository: ${repoName}`;
+
+  let prompt = `${basePrompt}\n\nRepository: ${repoName}`;
+
+  if (dbSchema && dbSchema.length > 0) {
+    prompt += DB_TOOL_INSTRUCTIONS;
+    prompt += "\n\nDatabase schema:\n";
+    prompt += formatSchemaForPrompt(dbSchema);
+  }
+
+  return prompt;
+}
+
+function formatSchemaForPrompt(schema: SchemaColumn[]): string {
+  // Group columns by table
+  const tables = new Map<string, SchemaColumn[]>();
+  for (const col of schema) {
+    const key = `${col.tableSchema}.${col.tableName}`;
+    if (!tables.has(key)) tables.set(key, []);
+    tables.get(key)!.push(col);
+  }
+
+  const lines: string[] = [];
+  for (const [tableName, columns] of tables) {
+    lines.push(`\n${tableName}:`);
+    for (const col of columns) {
+      const nullable = col.isNullable === "YES" ? ", nullable" : "";
+      const def = col.columnDefault ? `, default: ${col.columnDefault}` : "";
+      lines.push(`  - ${col.columnName}: ${col.dataType}${nullable}${def}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 export function buildMessages(

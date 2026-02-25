@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   varchar,
+  text,
   timestamp,
   bigint,
   index,
@@ -25,6 +26,8 @@ export const projects = pgTable("projects", {
   defaultBranch: varchar("default_branch", { length: 255 })
     .notNull()
     .default("main"),
+  encryptedDbConnectionString: text("encrypted_db_connection_string"),
+  dbConnectionStringIv: text("db_connection_string_iv"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [

@@ -3,17 +3,23 @@ import { z } from "zod";
 import { fetchRepoTree, fetchFileContent } from "@/lib/github/fetcher";
 import { shouldIndexFile } from "@/lib/github/filter";
 import { getAuthenticatedOctokit } from "@/lib/github/app";
+import { queryUserDatabase } from "@/lib/db/user-db";
 
 interface CreateCodebaseToolsOptions {
   installationId: number;
   repoFullName: string;
   defaultBranch: string;
+  dbConnection?: {
+    encryptedConnectionString: string;
+    iv: string;
+  };
 }
 
 export function createCodebaseTools({
   installationId,
   repoFullName,
   defaultBranch,
+  dbConnection,
 }: CreateCodebaseToolsOptions) {
   // Cache the repo tree within the request scope
   let cachedTree: string[] | null = null;
@@ -117,5 +123,41 @@ export function createCodebaseTools({
         }
       },
     }),
+
+    // Only injected when the project has a DB connection string
+    ...(dbConnection
+      ? {
+          queryDatabase: tool({
+            description:
+              "Execute a read-only SQL query against the project's connected database. Only SELECT and WITH (CTE) queries are allowed. Use this to answer questions about the application's data, check table contents, run aggregations, or investigate data issues. Always refer to the database schema provided in the system prompt.",
+            parameters: z.object({
+              query: z
+                .string()
+                .describe(
+                  "A read-only SQL query (SELECT or WITH only). Example: SELECT * FROM users LIMIT 10"
+                ),
+            }),
+            execute: async ({ query }) => {
+              try {
+                const result = await queryUserDatabase({
+                  encryptedConnectionString:
+                    dbConnection.encryptedConnectionString,
+                  iv: dbConnection.iv,
+                  query,
+                });
+                return {
+                  rows: result.rows,
+                  rowCount: result.rowCount,
+                  columns: result.fields.map((f) => f.name),
+                };
+              } catch (err: unknown) {
+                const message =
+                  err instanceof Error ? err.message : "Query failed";
+                return { error: message };
+              }
+            },
+          }),
+        }
+      : {}),
   };
 }

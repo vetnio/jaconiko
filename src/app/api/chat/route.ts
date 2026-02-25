@@ -14,6 +14,7 @@ import { streamText } from "ai";
 import { createCodebaseTools } from "@/lib/chat/tools";
 import { buildSystemPrompt, buildMessages } from "@/lib/chat/prompt-builder";
 import { getMembership, verifyInstallation } from "@/lib/auth/membership";
+import { getUserDatabaseSchema } from "@/lib/db/user-db";
 
 export const maxDuration = 60;
 
@@ -102,10 +103,28 @@ export async function POST(request: NextRequest) {
     .where(eq(messages.threadId, threadId))
     .orderBy(asc(messages.createdAt));
 
-  // Build system prompt (no chunks needed)
+  // Check if project has a DB connection
+  const hasDbConnection =
+    !!project.encryptedDbConnectionString && !!project.dbConnectionStringIv;
+
+  // Fetch DB schema if connected (for the system prompt)
+  let dbSchema;
+  if (hasDbConnection) {
+    try {
+      dbSchema = await getUserDatabaseSchema({
+        encryptedConnectionString: project.encryptedDbConnectionString!,
+        iv: project.dbConnectionStringIv!,
+      });
+    } catch {
+      // If schema fetch fails, proceed without DB tools
+    }
+  }
+
+  // Build system prompt (includes DB schema if available)
   const systemPrompt = buildSystemPrompt(
     userData?.technicalLevel || null,
-    project.githubRepoFullName
+    project.githubRepoFullName,
+    dbSchema
   );
 
   const conversationMessages = buildMessages(
@@ -116,11 +135,19 @@ export async function POST(request: NextRequest) {
     message
   );
 
-  // Create codebase exploration tools
+  // Create codebase exploration tools (includes queryDatabase if DB is connected)
   const tools = createCodebaseTools({
     installationId: project.githubInstallationId,
     repoFullName: project.githubRepoFullName,
     defaultBranch: project.defaultBranch,
+    ...(hasDbConnection && dbSchema
+      ? {
+          dbConnection: {
+            encryptedConnectionString: project.encryptedDbConnectionString!,
+            iv: project.dbConnectionStringIv!,
+          },
+        }
+      : {}),
   });
 
   // Stream response with tool use

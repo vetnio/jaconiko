@@ -64,3 +64,11 @@ export const chatTitleSchema = z.object({
   threadId: z.string().uuid(),
   firstMessage: z.string().min(1).max(10000),
 });
+
+export const saveDbConnectionSchema = z.object({
+  connectionString: z.string().min(1).max(2048),
+});
+
+export const testDbConnectionSchema = z.object({
+  connectionString: z.string().min(1).max(2048),
+});
