@@ -72,3 +72,17 @@ export const saveDbConnectionSchema = z.object({
 export const testDbConnectionSchema = z.object({
   connectionString: z.string().min(1).max(2048),
 });
+
+export const createDashboardSchema = z.object({
+  projectId: z.string().uuid(),
+  threadId: z.string().uuid().optional(),
+  title: z.string().min(1).max(500),
+  widgets: z.array(
+    z.object({
+      type: z.enum(["chart_bar", "chart_line", "chart_pie", "data_table", "stat_kpi"]),
+      title: z.string().min(1).max(500),
+      config: z.record(z.unknown()).optional(),
+      data: z.record(z.unknown()).optional(),
+    })
+  ),
+});
