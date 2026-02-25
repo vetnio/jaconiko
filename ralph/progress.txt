@@ -1,0 +1,57 @@
+## Codebase Patterns
+- Schema files are in `src/lib/db/schema/` with barrel export via `index.ts` (wildcard re-exports)
+- Use `pgTable` from `drizzle-orm/pg-core` for table definitions, `relations` from `drizzle-orm` for relations
+- UUIDs use `uuid("id").defaultRandom().primaryKey()` pattern
+- User FK is `text` type (not uuid) referencing `user.id`
+- Timestamps use `timestamp("col").notNull().defaultNow()`
+- Foreign keys use inline `.references(() => table.col, { onDelete: "cascade" })` syntax
+- Drizzle snapshot is out of sync (0001_snapshot.json missing dashboard tables) — use `drizzle-kit push` for schema changes or `--custom` for manual migration SQL
+- `drizzle-kit generate` may prompt interactively about enums — use `--custom` flag to bypass
+- Always use `IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` in custom migration SQL for safety
+- API routes use `auth.api.getSession({ headers: await headers() })` for auth, route params are Promises that must be awaited
+- Workspace membership verified by looking up project → project.workspaceId → `getMembership(userId, workspaceId)`
+- Validation schemas go in `src/lib/validations.ts` using Zod, use `.safeParse()` pattern
+- Widget type enum values: `chart_bar`, `chart_line`, `chart_pie`, `data_table`, `stat_kpi`
+- Use `db.transaction(async (tx) => { ... })` for multi-table inserts
+- Use `notInArray` from `drizzle-orm` when deleting rows not in a provided list of IDs
+- PATCH routes for entities with child rows: separate existing (with id) vs new (without id) items, delete removed, update existing, insert new — all in a transaction
+
+---
+
+## 2026-02-25 - US-002
+- What was implemented: Created `dashboardBookmarks` table with id, dashboardId, userId, createdAt columns and unique constraint on (dashboardId, userId). Added relations for dashboardBookmarks (to dashboards and user). Added `bookmarks` relation to dashboards.
+- Files changed:
+  - `src/lib/db/schema/dashboards.ts` — added `dashboardBookmarks` table, `dashboardBookmarksRelations`, and `bookmarks` many-relation on `dashboardsRelations`
+  - `drizzle/0002_add-dashboard-bookmarks.sql` — custom migration SQL
+  - `drizzle/meta/_journal.json` — updated with new migration entry
+  - `drizzle/meta/0002_snapshot.json` — auto-generated snapshot
+- **Learnings for future iterations:**
+  - Schema index (`src/lib/db/schema/index.ts`) uses wildcard re-exports, so new exports in existing schema files are automatically available
+  - The drizzle snapshot (0001) is out of sync with the actual DB — `drizzle-kit generate` will be confused by existing tables/enums. Use `drizzle-kit generate --custom` for manual SQL + `drizzle-kit push` to apply
+  - `drizzle-kit push` works reliably to apply schema changes directly to DB without migration runner issues
+  - `unique()` from `drizzle-orm/pg-core` needs to be imported to add unique constraints
+---
+
+## 2026-02-25 - US-003
+- What was implemented: Dashboard CRUD API routes — POST /api/dashboards (create with widgets, verifies workspace membership via project), GET /api/dashboards?projectId=... (list user's dashboards for a project), GET /api/dashboards/[dashboardId] (fetch single dashboard with widgets, owner-only access).
+- Files changed:
+  - `src/app/api/dashboards/route.ts` — POST and GET list handlers
+  - `src/app/api/dashboards/[dashboardId]/route.ts` — GET single dashboard handler
+  - `src/lib/validations.ts` — added `createDashboardSchema` Zod schema
+- **Learnings for future iterations:**
+  - To verify workspace membership for project-scoped operations: look up project by ID → use `project.workspaceId` with `getMembership()`
+  - Dashboard ownership check is simple: `dashboard.userId !== session.user.id`
+  - Widgets are fetched separately via `dashboardWidgets` table sorted by `position` ascending, then spread into the dashboard response
+  - The `config` and `data` JSONB fields use `z.record(z.unknown()).optional()` for flexible Zod validation
+---
+
+## 2026-02-25 - US-004
+- What was implemented: PATCH and DELETE endpoints for dashboards. PATCH supports updating title, adding/removing/updating widgets (with full reconciliation logic). DELETE removes a dashboard (cascade handles widgets and bookmarks). Added `updateDashboardSchema` Zod validation.
+- Files changed:
+  - `src/app/api/dashboards/[dashboardId]/route.ts` — added PATCH and DELETE handlers
+  - `src/lib/validations.ts` — added `updateDashboardSchema`
+- **Learnings for future iterations:**
+  - `notInArray` from `drizzle-orm` is useful for "delete rows not in this list" pattern
+  - For PATCH with child entities: separate widgets with `id` (existing) from those without (new), delete removed ones, update existing, insert new — all in a transaction
+  - Cascade delete on dashboards table handles cleanup of widgets and bookmarks automatically
+---

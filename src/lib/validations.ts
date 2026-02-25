@@ -86,3 +86,17 @@ export const createDashboardSchema = z.object({
     })
   ),
 });
+
+export const updateDashboardSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  widgets: z.array(
+    z.object({
+      id: z.string().uuid().optional(),
+      type: z.enum(["chart_bar", "chart_line", "chart_pie", "data_table", "stat_kpi"]),
+      title: z.string().min(1).max(500),
+      config: z.record(z.unknown()).optional(),
+      data: z.record(z.unknown()).optional(),
+      position: z.number().int().min(0),
+    })
+  ).optional(),
+});

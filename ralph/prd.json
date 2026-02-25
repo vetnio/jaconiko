@@ -1,0 +1,212 @@
+{
+  "project": "Jakoniko",
+  "branchName": "ralph/ai-dashboards",
+  "description": "AI-Generated Dashboards - Allow Jakoniko to create data dashboards (charts, tables, KPIs) from real codebase/database data, accessible via unique private links with bookmarking and editing support.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create dashboards and dashboard widgets database schema",
+      "description": "As a developer, I need to store dashboards and their widgets so they persist across sessions.",
+      "acceptanceCriteria": [
+        "Create `dashboards` table with columns: id (uuid PK), projectId (FK to projects), userId (FK to user), threadId (FK to chatThreads, nullable), title (text), createdAt, updatedAt",
+        "Create `dashboardWidgets` table with columns: id (uuid PK), dashboardId (FK to dashboards, cascade delete), type enum (chart_bar, chart_line, chart_pie, data_table, stat_kpi), title (text), config (jsonb), data (jsonb), position (integer), createdAt",
+        "Add indexes on dashboardId and on (projectId, userId)",
+        "Add Drizzle relations for dashboards and dashboardWidgets",
+        "Export new tables from src/lib/db/schema/index.ts",
+        "Generate and run Drizzle migration successfully",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Create dashboard bookmarks database schema",
+      "description": "As a developer, I need to store which dashboards a user has bookmarked.",
+      "acceptanceCriteria": [
+        "Create `dashboardBookmarks` table with columns: id (uuid PK), dashboardId (FK to dashboards, cascade delete), userId (FK to user), createdAt",
+        "Add unique constraint on (dashboardId, userId) to prevent duplicate bookmarks",
+        "Export new table from src/lib/db/schema/index.ts",
+        "Generate and run Drizzle migration successfully",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Build dashboard CRUD API routes",
+      "description": "As a developer, I need API endpoints to create, read, update, and delete dashboards.",
+      "acceptanceCriteria": [
+        "POST /api/dashboards — Create a new dashboard with widgets (accepts { projectId, threadId?, title, widgets: [...] }), verifies workspace membership",
+        "GET /api/dashboards/[dashboardId] — Fetch a dashboard with all its widgets, only accessible by the dashboard owner (dashboard.userId === session.userId)",
+        "GET /api/dashboards?projectId=... — List all dashboards for a project for the current user",
+        "All routes verify session authentication",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Add dashboard update and delete API routes",
+      "description": "As a developer, I need endpoints to update and delete dashboards.",
+      "acceptanceCriteria": [
+        "PATCH /api/dashboards/[dashboardId] — Update dashboard title, widget config/data/position, add/remove widgets (only by owner)",
+        "DELETE /api/dashboards/[dashboardId] — Delete a dashboard (only by owner)",
+        "Both routes verify session authentication and ownership",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Build bookmark API routes",
+      "description": "As a developer, I need endpoints to bookmark/unbookmark dashboards and list bookmarks.",
+      "acceptanceCriteria": [
+        "POST /api/dashboards/[dashboardId]/bookmark — Bookmark a dashboard (idempotent, uses onConflictDoNothing)",
+        "DELETE /api/dashboards/[dashboardId]/bookmark — Remove bookmark",
+        "GET /api/bookmarks/dashboards — List all bookmarked dashboards for current user (returns dashboard id, title, createdAt)",
+        "All routes verify authentication and dashboard ownership",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Install Recharts and create chart components",
+      "description": "As a developer, I need reusable chart components (bar, line, pie) to render within dashboards.",
+      "acceptanceCriteria": [
+        "Install recharts package",
+        "Create src/components/dashboard/bar-chart.tsx — Accepts data array + config (axis labels, colors), renders a responsive bar chart using ResponsiveContainer",
+        "Create src/components/dashboard/line-chart.tsx — Accepts data array + config, renders a responsive line chart",
+        "Create src/components/dashboard/pie-chart.tsx — Accepts data array + config, renders a responsive pie chart",
+        "All components handle empty data gracefully (show 'No data' message)",
+        "Chart colors use existing CSS custom properties for theme consistency",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Create data table and KPI stat card components",
+      "description": "As a developer, I need reusable data table and KPI stat card components for dashboards.",
+      "acceptanceCriteria": [
+        "Create src/components/dashboard/data-table.tsx — Accepts column definitions + row data, renders a sortable table",
+        "Create src/components/dashboard/stat-card.tsx — Accepts label + value + optional trend indicator, renders a KPI card with large font",
+        "Both components handle empty data gracefully (show 'No data' message)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Build dashboard view page",
+      "description": "As a user, I want to view a dashboard at its unique URL and see all its charts, tables, and stats.",
+      "acceptanceCriteria": [
+        "Create page at src/app/(app)/workspace/[workspaceId]/project/[projectId]/dashboard/[dashboardId]/page.tsx",
+        "Page fetches dashboard data from GET /api/dashboards/[dashboardId]",
+        "Renders each widget based on its type using the chart, data-table, and stat-card components",
+        "Responsive layout — widgets stack on mobile (single column), 2-column grid on desktop",
+        "Shows dashboard title and creation date",
+        "Shows 404 or unauthorized message if dashboard doesn't exist or user doesn't own it",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Add createDashboard tool to Jakoniko's AI tool set",
+      "description": "As a user chatting with Jakoniko, I want it to create a dashboard when I ask for data visualization so I get a link to view it.",
+      "acceptanceCriteria": [
+        "Add a new createDashboard tool in src/lib/chat/tools.ts following the existing tool pattern (Zod schema + async execute)",
+        "Tool accepts parameters: title (string), widgets (array of { type, title, config, data })",
+        "Tool inserts the dashboard directly using the current user's context (projectId, userId, threadId)",
+        "Tool returns the dashboard URL: /workspace/{workspaceId}/project/{projectId}/dashboard/{dashboardId}",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Update system prompt for dashboard intent detection and data integrity",
+      "description": "As a developer, I need to update the system prompt so Jakoniko knows when to create dashboards and strictly avoids fabricating data.",
+      "acceptanceCriteria": [
+        "Update src/lib/chat/prompt-builder.ts to include dashboard creation guidelines",
+        "Prompt instructs Claude to detect when user wants data visualized and use existing tools (listFiles, readFile, searchCode, queryDatabase) to gather real data first",
+        "Prompt explicitly forbids hallucinating data — if no relevant data is found, Claude must tell the user and refuse to create a dashboard",
+        "Prompt includes examples of dashboard-worthy queries (e.g., 'show me a breakdown of file types', 'chart the number of tables per schema')",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Add bookmark toggle button to dashboard page",
+      "description": "As a user viewing a dashboard, I want to bookmark it so I can easily find it later.",
+      "acceptanceCriteria": [
+        "Add bookmark toggle button (Bookmark/BookmarkCheck Lucide icons) in dashboard page header",
+        "Clicking the button calls POST or DELETE /api/dashboards/[dashboardId]/bookmark",
+        "Button reflects current bookmark state on page load (fetch bookmark status on mount)",
+        "Shows toast notification on bookmark/unbookmark",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Add bookmarked dashboards list to project page",
+      "description": "As a user, I want to see a list of my bookmarked dashboards so I can quickly access them.",
+      "acceptanceCriteria": [
+        "Add 'Bookmarked Dashboards' section to the project page or sidebar",
+        "List fetched from GET /api/bookmarks/dashboards filtered by project",
+        "Each item shows: dashboard title, creation date, clickable link to dashboard",
+        "Empty state message when no dashboards are bookmarked",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Add dashboard editing capabilities",
+      "description": "As a user, I want to edit an existing dashboard to change chart types, colors, titles, or widget order.",
+      "acceptanceCriteria": [
+        "Add an 'Edit' button on the dashboard view page (only visible to the owner)",
+        "Edit mode allows: changing widget titles, switching chart types (e.g., bar to line), updating colors, reordering widgets via up/down buttons",
+        "Changes are saved via PATCH /api/dashboards/[dashboardId]",
+        "'Save' and 'Cancel' buttons to confirm or discard changes",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
