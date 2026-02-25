@@ -24,6 +24,8 @@
 - All chart components use `"use client"` directive (Recharts requires browser APIs)
 - Dashboard widget components (data-table, stat-card) are in `src/components/dashboard/` alongside chart components
 - React hooks must be called before any early return — structure: hooks → useMemo → early return guard → event handlers → JSX
+- AI tools are defined in `src/lib/chat/tools.ts` via `createCodebaseTools()` which receives context (installationId, repoFullName, defaultBranch, dbConnection?, dashboard) and is called from `src/app/api/chat/route.ts`
+- To add new AI tools: add tool to the return object in `createCodebaseTools()`, add any new context params to `CreateCodebaseToolsOptions` interface, pass them from `route.ts`
 
 ---
 
@@ -117,4 +119,27 @@
   - Widget `data` from JSONB can be either an array directly or `{ rows: [...] }` — handle both cases in `getChartData()` helper
   - For stat_kpi widgets, extract label/value/trend from `widget.data` directly (different shape from chart/table widgets)
   - Error states from the dashboard API: 401 (unauthenticated), 403 (not owner), 404 (not found)
+---
+
+## 2026-02-25 - US-009
+- What was implemented: Added `createDashboard` AI tool to `src/lib/chat/tools.ts` that allows Jakoniko to create dashboards directly from chat. The tool accepts title and widgets parameters, inserts the dashboard and widgets via a DB transaction using the current user's context (projectId, userId, workspaceId, threadId), and returns the dashboard URL. Updated `CreateCodebaseToolsOptions` interface with a `dashboard` context object and passed it from `route.ts`.
+- Files changed:
+  - `src/lib/chat/tools.ts` — added `createDashboard` tool, imported `db`, `dashboards`, `dashboardWidgets`, added `dashboard` context to options interface
+  - `src/app/api/chat/route.ts` — passed `dashboard` context (projectId, userId, workspaceId, threadId) to `createCodebaseTools()`
+- **Learnings for future iterations:**
+  - AI tools in `createCodebaseTools()` have access to closure variables from the options — use this to pass user/project context without exposing it in tool parameters
+  - The `dashboard` context object pattern (grouping related params) keeps the interface clean when adding new context
+  - Tool `execute` functions can directly use `db` (Drizzle) for writes — no need to go through API routes
+  - Widget `config` and `data` from Zod `z.record(z.unknown()).optional()` need `?? null` coercion for JSONB insert
+---
+
+## 2026-02-25 - US-010
+- What was implemented: Updated `src/lib/chat/prompt-builder.ts` to include `DASHBOARD_INSTRUCTIONS` constant with dashboard creation guidelines. The instructions are appended to the system prompt for all technical levels. They instruct Claude to detect dashboard-worthy requests, always gather real data first using existing tools (listFiles, readFile, searchCode, queryDatabase), explicitly forbid hallucinating/fabricating data, include examples of dashboard-worthy queries, and guide appropriate widget type selection.
+- Files changed:
+  - `src/lib/chat/prompt-builder.ts` — added `DASHBOARD_INSTRUCTIONS` constant, appended to prompt in `buildSystemPrompt()`
+  - `ralph/prd.json` — marked US-010 as passes: true
+- **Learnings for future iterations:**
+  - Dashboard instructions are always appended (not conditional like DB_TOOL_INSTRUCTIONS) since the createDashboard tool is always available
+  - System prompt instruction blocks are composed via string concatenation with template literal constants
+  - The prompt builder has separate concerns: base prompt per technical level, tool instructions, DB instructions (conditional), dashboard instructions, and conciseness instructions
 ---
