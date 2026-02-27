@@ -1,0 +1,185 @@
+## Codebase Patterns
+- Schema files are in `src/lib/db/schema/` with barrel export via `index.ts` (wildcard re-exports)
+- Use `pgTable` from `drizzle-orm/pg-core` for table definitions, `relations` from `drizzle-orm` for relations
+- UUIDs use `uuid("id").defaultRandom().primaryKey()` pattern
+- User FK is `text` type (not uuid) referencing `user.id`
+- Timestamps use `timestamp("col").notNull().defaultNow()`
+- Foreign keys use inline `.references(() => table.col, { onDelete: "cascade" })` syntax
+- Drizzle snapshot is out of sync (0001_snapshot.json missing dashboard tables) — use `drizzle-kit push` for schema changes or `--custom` for manual migration SQL
+- `drizzle-kit generate` may prompt interactively about enums — use `--custom` flag to bypass
+- Always use `IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` in custom migration SQL for safety
+- API routes use `auth.api.getSession({ headers: await headers() })` for auth, route params are Promises that must be awaited
+- Workspace membership verified by looking up project → project.workspaceId → `getMembership(userId, workspaceId)`
+- Validation schemas go in `src/lib/validations.ts` using Zod, use `.safeParse()` pattern
+- Widget type enum values: `chart_bar`, `chart_line`, `chart_pie`, `data_table`, `stat_kpi`
+- Use `db.transaction(async (tx) => { ... })` for multi-table inserts
+- Use `notInArray` from `drizzle-orm` when deleting rows not in a provided list of IDs
+- PATCH routes for entities with child rows: separate existing (with id) vs new (without id) items, delete removed, update existing, insert new — all in a transaction
+- Use `.onConflictDoNothing()` for idempotent inserts (e.g., bookmarks with unique constraints)
+- Use `innerJoin` for fetching related data across tables in a single query (e.g., bookmarks + dashboard details)
+- Dashboard chart components are in `src/components/dashboard/` — `bar-chart.tsx`, `line-chart.tsx`, `pie-chart.tsx`
+- Chart components accept `{ data: Record<string, unknown>[], config?: {...} }` — config is optional with sensible defaults (auto-detects keys from data)
+- Chart colors use CSS custom properties: `var(--primary)`, `var(--success)`, `var(--warning)`, `var(--destructive)`, `var(--accent-foreground)`
+- Recharts `Pie` label render prop types require optional fields (`name?: string, percent?: number`) to satisfy `PieLabelRenderProps`
+- All chart components use `"use client"` directive (Recharts requires browser APIs)
+- Dashboard widget components (data-table, stat-card) are in `src/components/dashboard/` alongside chart components
+- React hooks must be called before any early return — structure: hooks → useMemo → early return guard → event handlers → JSX
+- AI tools are defined in `src/lib/chat/tools.ts` via `createCodebaseTools()` which receives context (installationId, repoFullName, defaultBranch, dbConnection?, dashboard) and is called from `src/app/api/chat/route.ts`
+- To add new AI tools: add tool to the return object in `createCodebaseTools()`, add any new context params to `CreateCodebaseToolsOptions` interface, pass them from `route.ts`
+
+---
+
+## 2026-02-25 - US-002
+- What was implemented: Created `dashboardBookmarks` table with id, dashboardId, userId, createdAt columns and unique constraint on (dashboardId, userId). Added relations for dashboardBookmarks (to dashboards and user). Added `bookmarks` relation to dashboards.
+- Files changed:
+  - `src/lib/db/schema/dashboards.ts` — added `dashboardBookmarks` table, `dashboardBookmarksRelations`, and `bookmarks` many-relation on `dashboardsRelations`
+  - `drizzle/0002_add-dashboard-bookmarks.sql` — custom migration SQL
+  - `drizzle/meta/_journal.json` — updated with new migration entry
+  - `drizzle/meta/0002_snapshot.json` — auto-generated snapshot
+- **Learnings for future iterations:**
+  - Schema index (`src/lib/db/schema/index.ts`) uses wildcard re-exports, so new exports in existing schema files are automatically available
+  - The drizzle snapshot (0001) is out of sync with the actual DB — `drizzle-kit generate` will be confused by existing tables/enums. Use `drizzle-kit generate --custom` for manual SQL + `drizzle-kit push` to apply
+  - `drizzle-kit push` works reliably to apply schema changes directly to DB without migration runner issues
+  - `unique()` from `drizzle-orm/pg-core` needs to be imported to add unique constraints
+---
+
+## 2026-02-25 - US-003
+- What was implemented: Dashboard CRUD API routes — POST /api/dashboards (create with widgets, verifies workspace membership via project), GET /api/dashboards?projectId=... (list user's dashboards for a project), GET /api/dashboards/[dashboardId] (fetch single dashboard with widgets, owner-only access).
+- Files changed:
+  - `src/app/api/dashboards/route.ts` — POST and GET list handlers
+  - `src/app/api/dashboards/[dashboardId]/route.ts` — GET single dashboard handler
+  - `src/lib/validations.ts` — added `createDashboardSchema` Zod schema
+- **Learnings for future iterations:**
+  - To verify workspace membership for project-scoped operations: look up project by ID → use `project.workspaceId` with `getMembership()`
+  - Dashboard ownership check is simple: `dashboard.userId !== session.user.id`
+  - Widgets are fetched separately via `dashboardWidgets` table sorted by `position` ascending, then spread into the dashboard response
+  - The `config` and `data` JSONB fields use `z.record(z.unknown()).optional()` for flexible Zod validation
+---
+
+## 2026-02-25 - US-004
+- What was implemented: PATCH and DELETE endpoints for dashboards. PATCH supports updating title, adding/removing/updating widgets (with full reconciliation logic). DELETE removes a dashboard (cascade handles widgets and bookmarks). Added `updateDashboardSchema` Zod validation.
+- Files changed:
+  - `src/app/api/dashboards/[dashboardId]/route.ts` — added PATCH and DELETE handlers
+  - `src/lib/validations.ts` — added `updateDashboardSchema`
+- **Learnings for future iterations:**
+  - `notInArray` from `drizzle-orm` is useful for "delete rows not in this list" pattern
+  - For PATCH with child entities: separate widgets with `id` (existing) from those without (new), delete removed ones, update existing, insert new — all in a transaction
+  - Cascade delete on dashboards table handles cleanup of widgets and bookmarks automatically
+---
+
+## 2026-02-25 - US-005
+- What was implemented: Bookmark API routes — POST /api/dashboards/[dashboardId]/bookmark (idempotent via onConflictDoNothing), DELETE /api/dashboards/[dashboardId]/bookmark (remove bookmark), GET /api/bookmarks/dashboards (list all bookmarked dashboards for current user with dashboard id, title, createdAt, projectId, bookmarkedAt).
+- Files changed:
+  - `src/app/api/dashboards/[dashboardId]/bookmark/route.ts` — POST and DELETE handlers for bookmarking/unbookmarking
+  - `src/app/api/bookmarks/dashboards/route.ts` — GET handler listing all bookmarked dashboards
+- **Learnings for future iterations:**
+  - `onConflictDoNothing()` on Drizzle insert makes bookmark creation idempotent (no error on duplicate)
+  - For bookmark list, use `innerJoin` between `dashboardBookmarks` and `dashboards` to get dashboard details in one query
+  - Bookmark routes verify both authentication and dashboard ownership (dashboard.userId === session.user.id)
+  - The bookmarks list endpoint includes `projectId` from the dashboard to enable filtering by project on the client side
+---
+
+## 2026-02-25 - US-006
+- What was implemented: Installed `recharts` package and created three reusable chart components: `bar-chart.tsx` (bar chart with configurable axes/colors), `line-chart.tsx` (line chart with monotone interpolation), `pie-chart.tsx` (pie chart with percentage labels). All components handle empty data gracefully with "No data" message. Colors use CSS custom properties for theme consistency.
+- Files changed:
+  - `package.json` / `package-lock.json` — added `recharts` dependency
+  - `src/components/dashboard/bar-chart.tsx` — responsive bar chart component
+  - `src/components/dashboard/line-chart.tsx` — responsive line chart component
+  - `src/components/dashboard/pie-chart.tsx` — responsive pie chart component
+- **Learnings for future iterations:**
+  - Recharts `PieLabelRenderProps` has optional `name` and `percent` — must type label render props with `?` to satisfy TypeScript
+  - Chart components auto-detect data keys from the first record: first key becomes x-axis/name, remaining become data series
+  - `ResponsiveContainer` from recharts needs a parent with defined height — components set `height={300}` directly
+  - CSS variables (`var(--primary)`) work as fill/stroke values in Recharts SVG components
+---
+
+## 2026-02-25 - US-007
+- What was implemented: Created two reusable dashboard components: `data-table.tsx` (sortable table with auto-detected columns from data keys, click-to-sort headers with ascending/descending toggle) and `stat-card.tsx` (KPI card with large value display, label, and optional trend indicator using Lucide TrendingUp/TrendingDown/Minus icons). Both handle empty data gracefully with "No data" message.
+- Files changed:
+  - `src/components/dashboard/data-table.tsx` — sortable data table component with column auto-detection
+  - `src/components/dashboard/stat-card.tsx` — KPI stat card with trend indicator
+- **Learnings for future iterations:**
+  - React hooks must be called before any early return — move `useMemo`/`useState` above the empty-data guard, then have the early return below
+  - `stat-card.tsx` does NOT need `"use client"` since it uses no hooks or browser APIs (Lucide icons are just SVG components)
+  - DataTable follows same `{ data, config? }` interface pattern as chart components for consistency
+  - The `handleSort` callback can be defined after the early return since it's not a hook
+- Dashboard view page uses `React.ComponentProps<typeof Component>["config"]` to safely cast JSONB config to each chart component's expected config type
+- Widget `data` field from JSONB should be structured as `{ rows: [...] }` for charts/tables, or stat fields directly for stat_kpi
+- StatCard widget gets its title from the widget card wrapper, not from the component itself (avoids duplicate titles)
+---
+
+## 2026-02-25 - US-008
+- What was implemented: Created dashboard view page at `src/app/(app)/workspace/[workspaceId]/project/[projectId]/dashboard/[dashboardId]/page.tsx`. Page fetches dashboard data from GET /api/dashboards/[dashboardId], renders widgets in a responsive 1-col (mobile) / 2-col (desktop) grid, shows dashboard title and creation date, and handles 404/unauthorized error states gracefully.
+- Files changed:
+  - `src/app/(app)/workspace/[workspaceId]/project/[projectId]/dashboard/[dashboardId]/page.tsx` — new dashboard view page
+  - `ralph/prd.json` — marked US-008 as passes: true
+- **Learnings for future iterations:**
+  - Chart component export names match the Recharts names (`BarChart`, `LineChart`, `PieChart`) — the custom components alias the Recharts originals internally (e.g., `import { BarChart as RechartsBarChart }`)
+  - Use `React.ComponentProps<typeof Component>["propName"]` to extract and cast to a component's expected prop type when dealing with JSONB data
+  - Widget `data` from JSONB can be either an array directly or `{ rows: [...] }` — handle both cases in `getChartData()` helper
+  - For stat_kpi widgets, extract label/value/trend from `widget.data` directly (different shape from chart/table widgets)
+  - Error states from the dashboard API: 401 (unauthenticated), 403 (not owner), 404 (not found)
+---
+
+## 2026-02-25 - US-009
+- What was implemented: Added `createDashboard` AI tool to `src/lib/chat/tools.ts` that allows Jakoniko to create dashboards directly from chat. The tool accepts title and widgets parameters, inserts the dashboard and widgets via a DB transaction using the current user's context (projectId, userId, workspaceId, threadId), and returns the dashboard URL. Updated `CreateCodebaseToolsOptions` interface with a `dashboard` context object and passed it from `route.ts`.
+- Files changed:
+  - `src/lib/chat/tools.ts` — added `createDashboard` tool, imported `db`, `dashboards`, `dashboardWidgets`, added `dashboard` context to options interface
+  - `src/app/api/chat/route.ts` — passed `dashboard` context (projectId, userId, workspaceId, threadId) to `createCodebaseTools()`
+- **Learnings for future iterations:**
+  - AI tools in `createCodebaseTools()` have access to closure variables from the options — use this to pass user/project context without exposing it in tool parameters
+  - The `dashboard` context object pattern (grouping related params) keeps the interface clean when adding new context
+  - Tool `execute` functions can directly use `db` (Drizzle) for writes — no need to go through API routes
+  - Widget `config` and `data` from Zod `z.record(z.unknown()).optional()` need `?? null` coercion for JSONB insert
+---
+
+## 2026-02-25 - US-010
+- What was implemented: Updated `src/lib/chat/prompt-builder.ts` to include `DASHBOARD_INSTRUCTIONS` constant with dashboard creation guidelines. The instructions are appended to the system prompt for all technical levels. They instruct Claude to detect dashboard-worthy requests, always gather real data first using existing tools (listFiles, readFile, searchCode, queryDatabase), explicitly forbid hallucinating/fabricating data, include examples of dashboard-worthy queries, and guide appropriate widget type selection.
+- Files changed:
+  - `src/lib/chat/prompt-builder.ts` — added `DASHBOARD_INSTRUCTIONS` constant, appended to prompt in `buildSystemPrompt()`
+  - `ralph/prd.json` — marked US-010 as passes: true
+- **Learnings for future iterations:**
+  - Dashboard instructions are always appended (not conditional like DB_TOOL_INSTRUCTIONS) since the createDashboard tool is always available
+  - System prompt instruction blocks are composed via string concatenation with template literal constants
+  - The prompt builder has separate concerns: base prompt per technical level, tool instructions, DB instructions (conditional), dashboard instructions, and conciseness instructions
+---
+
+## 2026-02-25 - US-011
+- What was implemented: Added bookmark toggle button to the dashboard view page header. Button fetches bookmark status on mount via GET /api/bookmarks/dashboards, toggles via POST/DELETE /api/dashboards/[dashboardId]/bookmark, shows Bookmark/BookmarkCheck Lucide icons, and displays toast notifications on success/error.
+- Files changed:
+  - `src/app/(app)/workspace/[workspaceId]/project/[projectId]/dashboard/[dashboardId]/page.tsx` — added bookmark state, fetch-on-mount effect, toggle handler, and bookmark button in header
+  - `ralph/prd.json` — marked US-011 as passes: true
+- **Learnings for future iterations:**
+  - The bookmark list endpoint (GET /api/bookmarks/dashboards) returns all bookmarks for the user — filter client-side by dashboardId to check if a specific dashboard is bookmarked
+  - Toast API: `useToast()` returns `{ success, error, info }` functions that take a message string
+  - Bookmark button uses optimistic-like pattern: toggle state immediately after API success, show toast
+  - All hooks (useToast, useState, useEffect, useCallback) must be called before any early return in the component
+---
+
+## 2026-02-25 - US-012
+- What was implemented: Added "Bookmarked Dashboards" section to the chat page sidebar. Created `BookmarkedDashboards` component that fetches bookmarks from GET /api/bookmarks/dashboards, filters by projectId, and displays each as a clickable link with title, icon, and creation date. Restructured the chat page sidebar to use an `<aside>` wrapper containing both ThreadList and BookmarkedDashboards. Moved ThreadList's outer container styling (w-64, border-r) to the sidebar wrapper so both components share the same container.
+- Files changed:
+  - `src/components/dashboard/bookmarked-dashboards.tsx` — new component fetching and displaying bookmarked dashboards
+  - `src/components/chat/thread-list.tsx` — removed outer container styling (w-64, border-r), now uses flex-1 min-h-0
+  - `src/app/(app)/workspace/[workspaceId]/project/[projectId]/chat/[threadId]/page.tsx` — added sidebar `<aside>` wrapper, imported and rendered BookmarkedDashboards
+  - `ralph/prd.json` — marked US-012 as passes: true
+- **Learnings for future iterations:**
+  - ThreadList's outer container styling was moved to a sidebar `<aside>` wrapper in the chat page to allow additional sidebar sections
+  - BookmarkedDashboards is self-contained (does its own fetch) — follows the same pattern as bookmark status in the dashboard view page
+  - The bookmarks API returns `id` (dashboard id), `title`, `createdAt`, `projectId`, `bookmarkedAt` — filter by projectId client-side
+  - Sidebar section pattern: border-t separator, uppercase tracking-wider label, items list
+---
+
+## 2026-02-25 - US-013
+- What was implemented: Added dashboard editing capabilities to the dashboard view page. Edit mode allows changing the dashboard title, switching widget chart types (bar/line/pie/table/kpi), selecting color schemes for chart widgets, and reordering widgets via up/down buttons. Changes are saved via PATCH /api/dashboards/[dashboardId] and can be discarded with Cancel.
+- Files changed:
+  - `src/app/(app)/workspace/[workspaceId]/project/[projectId]/dashboard/[dashboardId]/page.tsx` — added EditWidgetCard component, edit mode state (editing, editTitle, editWidgets, saving), Edit/Save/Cancel buttons in header, title inline editing, widget type dropdown, color scheme selector, up/down reorder buttons, save via PATCH API
+  - `ralph/prd.json` — marked US-013 as passes: true
+- **Learnings for future iterations:**
+  - The dashboard page is already owner-only (API returns 403 for non-owners), so the Edit button can always be shown when dashboard loads
+  - Widget reordering uses array index swap pattern with `setEditWidgets` functional updater to avoid stale state
+  - Color scheme selection works by setting `config.colors` array — chart components already support this via their config prop
+  - `saveChanges` maps editWidgets to the PATCH schema format: each widget needs id, type, title, config, data, and position (index-based)
+  - The `Button` component from `@/components/ui/button` supports variants: primary, secondary, ghost, destructive — and sizes: sm, md, lg
+  - When editing, the live preview updates in real-time using `WidgetRenderer` with the modified widget state
+---

@@ -54,7 +54,7 @@ export function ThreadList({
   }
 
   return (
-    <div className="w-64 border-r border-[var(--border)] h-full flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col">
       <div className="p-2">
         <Button variant="ghost" size="sm" className="w-full" onClick={onNewThread}>
           <Plus className="h-4 w-4 mr-1" /> New chat

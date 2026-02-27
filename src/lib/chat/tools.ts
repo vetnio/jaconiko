@@ -4,6 +4,8 @@ import { fetchRepoTree, fetchFileContent } from "@/lib/github/fetcher";
 import { shouldIndexFile } from "@/lib/github/filter";
 import { getAuthenticatedOctokit } from "@/lib/github/app";
 import { queryUserDatabase } from "@/lib/db/user-db";
+import { db } from "@/lib/db";
+import { dashboards, dashboardWidgets } from "@/lib/db/schema";
 
 interface CreateCodebaseToolsOptions {
   installationId: number;
@@ -13,6 +15,12 @@ interface CreateCodebaseToolsOptions {
     encryptedConnectionString: string;
     iv: string;
   };
+  dashboard: {
+    projectId: string;
+    userId: string;
+    workspaceId: string;
+    threadId: string;
+  };
 }
 
 export function createCodebaseTools({
@@ -20,6 +28,7 @@ export function createCodebaseTools({
   repoFullName,
   defaultBranch,
   dbConnection,
+  dashboard: dashboardCtx,
 }: CreateCodebaseToolsOptions) {
   // Cache the repo tree within the request scope
   let cachedTree: string[] | null = null;
@@ -159,5 +168,87 @@ export function createCodebaseTools({
           }),
         }
       : {}),
+
+    createDashboard: tool({
+      description:
+        "Create a data dashboard with charts, tables, and KPI cards. Use this ONLY after gathering real data from the codebase or database using other tools (listFiles, readFile, searchCode, queryDatabase). Never fabricate data — every value in the dashboard must come from actual data you retrieved.",
+      parameters: z.object({
+        title: z
+          .string()
+          .describe("A descriptive title for the dashboard"),
+        widgets: z
+          .array(
+            z.object({
+              type: z
+                .enum([
+                  "chart_bar",
+                  "chart_line",
+                  "chart_pie",
+                  "data_table",
+                  "stat_kpi",
+                ])
+                .describe("The widget type"),
+              title: z
+                .string()
+                .describe("A descriptive title for this widget"),
+              config: z
+                .record(z.unknown())
+                .optional()
+                .describe(
+                  "Optional display config (e.g. axis labels, colors)"
+                ),
+              data: z
+                .record(z.unknown())
+                .optional()
+                .describe(
+                  "The data to display. For charts/tables: { rows: [{...}, ...] }. For stat_kpi: { label, value, trend? }"
+                ),
+            })
+          )
+          .describe("Array of widgets to include in the dashboard"),
+      }),
+      execute: async ({ title, widgets }) => {
+        try {
+          const [dashboard] = await db.transaction(async (tx) => {
+            const [newDashboard] = await tx
+              .insert(dashboards)
+              .values({
+                projectId: dashboardCtx.projectId,
+                userId: dashboardCtx.userId,
+                threadId: dashboardCtx.threadId,
+                title,
+              })
+              .returning();
+
+            if (widgets.length > 0) {
+              await tx.insert(dashboardWidgets).values(
+                widgets.map((w, i) => ({
+                  dashboardId: newDashboard.id,
+                  type: w.type,
+                  title: w.title,
+                  config: w.config ?? null,
+                  data: w.data ?? null,
+                  position: i,
+                }))
+              );
+            }
+
+            return [newDashboard];
+          });
+
+          const url = `/workspace/${dashboardCtx.workspaceId}/project/${dashboardCtx.projectId}/dashboard/${dashboard.id}`;
+
+          return {
+            dashboardId: dashboard.id,
+            url,
+            message: `Dashboard "${title}" created with ${widgets.length} widget(s).`,
+          };
+        } catch (err: unknown) {
+          const message =
+            err instanceof Error ? err.message : "Failed to create dashboard";
+          return { error: message };
+        }
+      },
+    }),
   };
 }

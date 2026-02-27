@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { ThreadList } from "@/components/chat/thread-list";
+import { BookmarkedDashboards } from "@/components/dashboard/bookmarked-dashboards";
 import { Spinner } from "@/components/ui/spinner";
 
 interface ChatMessage {
@@ -329,16 +330,19 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full">
-      <ThreadList
-        threads={threads}
-        activeThreadId={activeThreadId}
-        loadingThreadIds={loadingThreadIds}
-        unreadThreadIds={unreadThreadIds}
-        onSelectThread={handleSelectThread}
-        onNewThread={handleNewThread}
-        onRename={handleRename}
-        onDelete={handleDelete}
-      />
+      <aside className="w-64 border-r border-[var(--border)] h-full flex flex-col">
+        <ThreadList
+          threads={threads}
+          activeThreadId={activeThreadId}
+          loadingThreadIds={loadingThreadIds}
+          unreadThreadIds={unreadThreadIds}
+          onSelectThread={handleSelectThread}
+          onNewThread={handleNewThread}
+          onRename={handleRename}
+          onDelete={handleDelete}
+        />
+        <BookmarkedDashboards projectId={projectId} workspaceId={workspaceId} />
+      </aside>
       <div className="flex-1 relative">
         {!mountedThreadIds.has(activeThreadId) && (
           <div className="flex justify-center py-20">

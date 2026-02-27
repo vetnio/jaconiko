@@ -58,15 +58,16 @@ export default function InvitationsPage() {
       if (res.ok) {
         const data = await res.json();
         router.push(`/workspace/${data.workspaceId}`);
+        // Don't reset acceptingId — keep button in loading state during navigation
+        return;
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.error || `Failed to accept invitation (${res.status})`);
       }
     } catch {
       setError("Network error. Please check your connection and try again.");
-    } finally {
-      setAcceptingId(null);
     }
+    setAcceptingId(null);
   }
 
   async function handleDeclineConfirm() {

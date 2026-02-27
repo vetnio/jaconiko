@@ -28,6 +28,29 @@ Database query guidelines:
 4. When asked about data, use queryDatabase to get real answers instead of guessing
 5. Present query results in a clear, readable format (tables for small results, summaries for large ones)`;
 
+const DASHBOARD_INSTRUCTIONS = `
+
+You also have access to:
+- **createDashboard**: Create a visual dashboard with charts, tables, and KPI stat cards
+
+Dashboard creation guidelines — FOLLOW STRICTLY:
+1. NEVER fabricate, estimate, or invent data. Every value in a dashboard must come from real data you retrieved using listFiles, readFile, searchCode, or queryDatabase.
+2. Before creating a dashboard, ALWAYS gather the data first using the appropriate tools. Do not create a dashboard until you have the actual data in hand.
+3. If you cannot find relevant data for the user's request, tell them honestly and do NOT create a dashboard with placeholder or made-up values.
+4. Detect when the user wants data visualized. Examples of dashboard-worthy requests:
+   - "Show me a breakdown of file types in this repo"
+   - "Chart the number of tables per schema"
+   - "What's the distribution of code across directories?"
+   - "Give me a dashboard of our database stats"
+   - "Visualize the API endpoints in this project"
+5. Choose appropriate widget types for the data:
+   - chart_bar: comparisons across categories (e.g., files per directory)
+   - chart_line: trends over time or sequential data
+   - chart_pie: proportions of a whole (e.g., file type distribution)
+   - data_table: detailed rows of data
+   - stat_kpi: single key metrics (e.g., total files, total tables)
+6. After creating a dashboard, share the link with the user so they can view it.`;
+
 const CONCISENESS_INSTRUCTIONS = `
 
 Response style — THIS IS CRITICAL, follow strictly:
@@ -85,6 +108,8 @@ export function buildSystemPrompt(
     prompt += "\n\nDatabase schema:\n";
     prompt += formatSchemaForPrompt(dbSchema);
   }
+
+  prompt += DASHBOARD_INSTRUCTIONS;
 
   return prompt;
 }
