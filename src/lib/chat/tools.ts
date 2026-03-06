@@ -209,32 +209,28 @@ export function createCodebaseTools({
       }),
       execute: async ({ title, widgets }) => {
         try {
-          const [dashboard] = await db.transaction(async (tx) => {
-            const [newDashboard] = await tx
-              .insert(dashboards)
-              .values({
-                projectId: dashboardCtx.projectId,
-                userId: dashboardCtx.userId,
-                threadId: dashboardCtx.threadId,
-                title,
-              })
-              .returning();
+          const [dashboard] = await db
+            .insert(dashboards)
+            .values({
+              projectId: dashboardCtx.projectId,
+              userId: dashboardCtx.userId,
+              threadId: dashboardCtx.threadId,
+              title,
+            })
+            .returning();
 
-            if (widgets.length > 0) {
-              await tx.insert(dashboardWidgets).values(
-                widgets.map((w, i) => ({
-                  dashboardId: newDashboard.id,
-                  type: w.type,
-                  title: w.title,
-                  config: w.config ?? null,
-                  data: w.data ?? null,
-                  position: i,
-                }))
-              );
-            }
-
-            return [newDashboard];
-          });
+          if (widgets.length > 0) {
+            await db.insert(dashboardWidgets).values(
+              widgets.map((w, i) => ({
+                dashboardId: dashboard.id,
+                type: w.type,
+                title: w.title,
+                config: w.config ?? null,
+                data: w.data ?? null,
+                position: i,
+              }))
+            );
+          }
 
           const url = `/workspace/${dashboardCtx.workspaceId}/project/${dashboardCtx.projectId}/dashboard/${dashboard.id}`;
 

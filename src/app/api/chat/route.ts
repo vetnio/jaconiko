@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
 
   // Stream response with tool use
   const result = streamText({
-    model: anthropic("claude-sonnet-4-5-20250929"),
+    model: anthropic("claude-sonnet-4-6"),
     system: systemPrompt,
     messages: conversationMessages,
     tools,
