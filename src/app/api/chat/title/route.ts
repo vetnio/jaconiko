@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { chatThreads } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { chatTitleSchema } from "@/lib/validations";
 import { verifyThreadAccess } from "@/lib/auth/membership";
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { text } = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
+      model: openai("gpt-4o-mini"),
       prompt: `Generate a short, descriptive title (max 50 characters) for a chat thread that starts with this message. Return ONLY the title, nothing else.\n\nMessage: "${firstMessage}"`,
     });
 

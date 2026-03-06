@@ -9,7 +9,7 @@ import {
   user as userTable,
 } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { createCodebaseTools } from "@/lib/chat/tools";
 import { buildSystemPrompt, buildMessages } from "@/lib/chat/prompt-builder";
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
 
   // Stream response with tool use
   const result = streamText({
-    model: anthropic("claude-sonnet-4-6"),
+    model: openai("gpt-4o"),
     system: systemPrompt,
     messages: conversationMessages,
     tools,
