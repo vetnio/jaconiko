@@ -18,8 +18,18 @@ export function getChartData(
 ): Record<string, unknown>[] {
   const data = widget.data;
   if (!data) return [];
+  // Direct array (shouldn't happen with z.record but handle it)
   if (Array.isArray(data)) return data as Record<string, unknown>[];
+  // { rows: [...] } format
   if (Array.isArray(data.rows)) return data.rows as Record<string, unknown>[];
+  // { data: [...] } format
+  if (Array.isArray(data.data)) return data.data as Record<string, unknown>[];
+  // Fallback: find the first array value in the object
+  for (const val of Object.values(data)) {
+    if (Array.isArray(val) && val.length > 0 && typeof val[0] === "object" && val[0] !== null) {
+      return val as Record<string, unknown>[];
+    }
+  }
   return [];
 }
 
