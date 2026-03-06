@@ -74,7 +74,6 @@ export function MessageBubble({ role, content, toolInvocations }: MessageBubbleP
           dashboardResults.map((inv) => (
             <InlineDashboard
               key={inv.toolCallId}
-              args={inv.args}
               result={inv.result as Record<string, unknown>}
             />
           ))}

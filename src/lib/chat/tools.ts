@@ -238,6 +238,13 @@ export function createCodebaseTools({
             dashboardId: dashboard.id,
             url,
             message: `Dashboard "${title}" created with ${widgets.length} widget(s).`,
+            widgets: widgets.map((w, i) => ({
+              type: w.type,
+              title: w.title,
+              config: w.config ?? null,
+              data: w.data ?? null,
+              position: i,
+            })),
           };
         } catch (err: unknown) {
           const message =

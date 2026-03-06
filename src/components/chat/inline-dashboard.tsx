@@ -5,13 +5,12 @@ import { LayoutDashboard } from "lucide-react";
 import { WidgetRenderer, type WidgetData } from "@/components/dashboard/widget-renderer";
 
 interface InlineDashboardProps {
-  args: Record<string, unknown>;
   result: Record<string, unknown>;
 }
 
-export function InlineDashboard({ args, result }: InlineDashboardProps) {
-  const title = (args.title as string) || "Dashboard";
-  const widgets = Array.isArray(args.widgets) ? (args.widgets as WidgetData[]) : [];
+export function InlineDashboard({ result }: InlineDashboardProps) {
+  const title = (result.message as string) || "Dashboard";
+  const widgets = Array.isArray(result.widgets) ? (result.widgets as WidgetData[]) : [];
   const url = result.url as string | undefined;
 
   if (widgets.length === 0) return null;
