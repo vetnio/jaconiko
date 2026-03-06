@@ -179,5 +179,10 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return result.toDataStreamResponse();
+  return result.toDataStreamResponse({
+    getErrorMessage: (error) => {
+      console.error("[chat stream error]", error);
+      return error instanceof Error ? error.message : "An error occurred";
+    },
+  });
 }
