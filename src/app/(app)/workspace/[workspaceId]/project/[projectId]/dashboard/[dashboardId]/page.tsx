@@ -14,11 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
-import { BarChart } from "@/components/dashboard/bar-chart";
-import { LineChart } from "@/components/dashboard/line-chart";
-import { PieChart } from "@/components/dashboard/pie-chart";
-import { DataTable } from "@/components/dashboard/data-table";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { WidgetRenderer } from "@/components/dashboard/widget-renderer";
 
 interface DashboardWidget {
   id: string;
@@ -83,80 +79,6 @@ const COLOR_SCHEMES: { name: string; colors: string[] }[] = [
     ],
   },
 ];
-
-function getChartData(
-  widget: DashboardWidget
-): Record<string, unknown>[] {
-  const data = widget.data;
-  if (!data) return [];
-  // Support both { rows: [...] } and direct array stored as JSONB
-  if (Array.isArray(data)) return data as Record<string, unknown>[];
-  if (Array.isArray(data.rows)) return data.rows as Record<string, unknown>[];
-  return [];
-}
-
-function WidgetRenderer({ widget }: { widget: DashboardWidget }) {
-  const chartData = getChartData(widget);
-  // Config comes from JSONB — cast to each component's expected type
-  const config = widget.config ?? {};
-
-  switch (widget.type) {
-    case "chart_bar":
-      return (
-        <BarChart
-          data={chartData}
-          config={config as React.ComponentProps<typeof BarChart>["config"]}
-        />
-      );
-    case "chart_line":
-      return (
-        <LineChart
-          data={chartData}
-          config={config as React.ComponentProps<typeof LineChart>["config"]}
-        />
-      );
-    case "chart_pie":
-      return (
-        <PieChart
-          data={chartData}
-          config={config as React.ComponentProps<typeof PieChart>["config"]}
-        />
-      );
-    case "data_table":
-      return (
-        <DataTable
-          data={chartData}
-          config={config as React.ComponentProps<typeof DataTable>["config"]}
-        />
-      );
-    case "stat_kpi": {
-      const d = widget.data ?? {};
-      return (
-        <StatCard
-          label={typeof d.label === "string" ? d.label : widget.title}
-          value={
-            typeof d.value === "string" || typeof d.value === "number"
-              ? d.value
-              : "—"
-          }
-          trend={
-            d.trend &&
-            typeof d.trend === "object" &&
-            !Array.isArray(d.trend)
-              ? (d.trend as { direction: "up" | "down" | "neutral"; text?: string })
-              : undefined
-          }
-        />
-      );
-    }
-    default:
-      return (
-        <div className="flex items-center justify-center h-64 text-[var(--muted-foreground)]">
-          Unknown widget type
-        </div>
-      );
-  }
-}
 
 function EditWidgetCard({
   widget,

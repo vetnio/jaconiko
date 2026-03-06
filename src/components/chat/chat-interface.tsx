@@ -127,6 +127,7 @@ export function ChatInterface({
                     toolName: string;
                     state: "call" | "result" | "partial-call";
                     args: Record<string, unknown>;
+                    result?: unknown;
                   }[]
                 | undefined
             }

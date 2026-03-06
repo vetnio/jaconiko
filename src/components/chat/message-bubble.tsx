@@ -9,6 +9,7 @@ interface ToolInvocationData {
   toolName: string;
   state: "call" | "result" | "partial-call";
   args: Record<string, unknown>;
+  result?: unknown;
 }
 
 interface MessageBubbleProps {
@@ -42,6 +43,7 @@ export function MessageBubble({ role, content, toolInvocations }: MessageBubbleP
                 toolName={invocation.toolName}
                 state={invocation.state}
                 args={invocation.args}
+                result={invocation.result}
               />
             ))}
           </div>

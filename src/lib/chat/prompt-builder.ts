@@ -23,10 +23,13 @@ You also have access to:
 
 Database query guidelines:
 1. Only SELECT and WITH (CTE) queries are allowed — no writes, DDL, or data modifications
-2. Always use the schema information below to write correct queries
+2. Always use the schema information below to write correct queries. Carefully check table names, column names, column types, and enum values BEFORE writing a query. Do not guess — refer to the schema.
 3. Limit results when exploring data (e.g. LIMIT 20) to keep responses concise
 4. When asked about data, use queryDatabase to get real answers instead of guessing
-5. Present query results in a clear, readable format (tables for small results, summaries for large ones)`;
+5. Present query results in a clear, readable format (tables for small results, summaries for large ones)
+6. If a query returns an error, DO NOT show the raw error or SQL to the user. Instead, silently fix the query and retry. The user should only see the final successful result or a simple "I couldn't find that data" message — never internal SQL errors or debugging details.
+7. Think carefully about PostgreSQL syntax: use double quotes for identifiers with special characters, correct casting for types, proper date/time functions (e.g. NOW(), INTERVAL), and valid enum comparisons.
+8. When filtering by dates, use PostgreSQL date functions like NOW() - INTERVAL '7 days' rather than hardcoded dates.`;
 
 const DASHBOARD_INSTRUCTIONS = `
 
