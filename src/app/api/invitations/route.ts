@@ -89,18 +89,19 @@ export async function PATCH(request: NextRequest) {
 
   if (action === "accept") {
     try {
-      await db.transaction(async (tx) => {
-        await tx.insert(workspaceMembers).values({
+      await db
+        .insert(workspaceMembers)
+        .values({
           workspaceId: invitation.workspaceId,
           userId: session.user.id,
           role: invitation.role === "admin" ? "admin" : "user",
-        }).onConflictDoNothing();
+        })
+        .onConflictDoNothing();
 
-        await tx
-          .update(workspaceInvitations)
-          .set({ status: "accepted" })
-          .where(eq(workspaceInvitations.id, invitationId));
-      });
+      await db
+        .update(workspaceInvitations)
+        .set({ status: "accepted" })
+        .where(eq(workspaceInvitations.id, invitationId));
     } catch (err) {
       console.error("Failed to accept invitation:", err);
       return NextResponse.json(
